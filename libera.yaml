@@ -1,0 +1,36 @@
+libera:
+  version: 1.0.0
+  path: "{type}/{id}/{field}"
+
+types:
+  # boundary
+  - request
+  - deliverable
+  - approval
+  - acceptance
+
+  # movement
+  - task
+  - change
+  - review
+  - decision
+
+  # exception
+  - issue
+  - incident
+  - validation
+  - escalation
+
+fields:
+  # universal
+  - status
+  - owner
+  - result
+
+  # execution
+  - priority
+  - due
+
+  # governance
+  - evidence
+  - authority
