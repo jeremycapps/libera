@@ -1,0 +1,28 @@
+moments:
+  - id: moment.001
+    workstream: client_homepage_update
+    path: request/customer_assets/status
+    value: submitted
+    timpo: timpo.001
+    previous: null
+
+  - id: moment.002
+    workstream: client_homepage_update
+    path: task/update_hero_layout/status
+    value: todo
+    timpo: timpo.002
+    previous: null
+
+  - id: moment.003
+    workstream: client_homepage_update
+    path: task/update_hero_layout/status
+    value: ready_for_review
+    timpo: timpo.003
+    previous: moment.002
+
+  - id: moment.004
+    workstream: client_homepage_update
+    path: review/client_homepage/status
+    value: requested
+    timpo: timpo.004
+    previous: null
