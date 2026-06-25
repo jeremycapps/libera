@@ -1,6 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$title: Libera Workstream
-$type: object
+title: Libera Workstream
+type: object
 required:
   - workstream
   - states
@@ -13,13 +13,16 @@ properties:
     properties:
       id:
         type: string
+        pattern: "^[a-z0-9_.-]+$"
       libera_version:
         type: string
+        const: 1.0.0
     additionalProperties: false
   states:
     type: object
+    minProperties: 1
     patternProperties:
-      "^[a-z0-9_.-]+/[a-z0-9_.-]+/[a-z0-9_.-]+$":
+      "^((request|deliverable|task|change|issue|incident)/[a-z0-9_.-]+/(status|owner|result|priority|due)|(approval|acceptance|review|decision|validation|escalation)/[a-z0-9_.-]+/(status|owner|result|evidence|authority))$":
         type: object
         oneOf:
           - required: [values]
@@ -32,7 +35,13 @@ properties:
               type: string
           value_type:
             type: string
-            enum: [string, date, actor_ref, reference, number, boolean]
+            enum:
+              - string
+              - date
+              - actor_ref
+              - reference
+              - number
+              - boolean
         additionalProperties: false
     additionalProperties: false
 additionalProperties: false
