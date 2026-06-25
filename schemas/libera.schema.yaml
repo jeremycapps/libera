@@ -1,6 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$title: Libera Vocabulary
-$type: object
+title: Libera Vocabulary
+type: object
 required:
   - libera
   - types
@@ -14,18 +14,34 @@ properties:
     properties:
       version:
         type: string
+        const: 1.0.0
       path:
         type: string
         const: "{type}/{id}/{field}"
     additionalProperties: false
   types:
     type: array
-    minItems: 1
-    items:
-      type: string
+    const:
+      - request
+      - deliverable
+      - approval
+      - acceptance
+      - task
+      - change
+      - review
+      - decision
+      - issue
+      - incident
+      - validation
+      - escalation
   fields:
     type: array
-    minItems: 1
-    items:
-      type: string
+    const:
+      - status
+      - owner
+      - result
+      - priority
+      - due
+      - evidence
+      - authority
 additionalProperties: false
