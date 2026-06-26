@@ -1,0 +1,62 @@
+version: 2
+
+path_format: "{pressure}/{operation}/{slot}"
+
+pressures:
+  boundary:
+    description: Work crosses a program boundary.
+    operations:
+      enter: Something comes into scope.
+      exit: Something leaves scope or becomes output.
+
+  movement:
+    description: Work moves or changes inside a program.
+    operations:
+      advance: Something moves forward.
+      change: Something is altered.
+
+  exception:
+    description: Work deviates from expected state.
+    operations:
+      detect: Deviation is identified.
+      respond: Deviation is acted on.
+
+path:
+  required:
+    - program
+    - pressure
+    - operation
+    - slot
+
+  fields:
+    program:
+      type: string
+      description: Program or workstream address space.
+
+    pressure:
+      type: enum
+      values:
+        - boundary
+        - movement
+        - exception
+
+    operation:
+      type: enum
+      values:
+        - enter
+        - exit
+        - advance
+        - change
+        - detect
+        - respond
+
+    slot:
+      type: string
+      description: Addressable state location inside the program.
+
+boundaries:
+  - Libera does not define domain types.
+  - Libera does not define execution or meaning.
+  - Libera does not record observations.
+  - Libera does not decide truth.
+  - Libera does not render use surfaces.
