@@ -14,6 +14,7 @@ import tests.test_k0 as test_k0
 import tests.test_yaml as test_yaml
 import tests.test_compile as test_compile
 import tests.test_domain as test_domain
+import tests.test_address as test_address
 
 
 fn main() raises:
@@ -32,6 +33,9 @@ fn main() raises:
     # YAML -> Model IR
     test_yaml.run(t)
     test_compile.run(t)
+
+    # Address layer
+    test_address.run(t)
 
     # Domain (layer 2)
     test_domain.run(t)
