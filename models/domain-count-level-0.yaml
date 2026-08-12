@@ -1,0 +1,61 @@
+# Domain Level 0 -- the bootstrap model from the architecture doc, section 3.3.
+#
+# This proves only that expected and actual values can be compared, preserved,
+# and routed. It does not discover a transform path: the Result is supplied
+# from outside and Domain verifies it. Planning belongs to Strategy (section 4)
+# and is deliberately absent.
+#
+# Note what is NOT here: no Mojo, no operator definitions, no control flow.
+# The kernel supplies `eq` and `if`; this document only says what to compare
+# and what to call the outcome.
+
+model: domain-count-level-0
+version: 0.1
+
+contract:
+  expected:
+    count: 3
+
+expressions:
+
+  # Verdict = Evaluate(verify, { expected, actual })
+  # Shape per section 3.1: { conforms, expected, actual, finding? }
+  verify:
+    record:
+      type: Verdict
+      expected:
+        ref: expected.count
+      actual:
+        ref: actual.count
+      conforms:
+        eq:
+          - ref: actual.count
+          - ref: expected.count
+      finding:
+        if:
+          condition:
+            eq:
+              - ref: actual.count
+              - ref: expected.count
+          then: confirmed
+          else: not_confirmed
+
+  # State_next = Evaluate(orchestrate, { state, output })
+  # Fold the latest output into CurrentState and choose classification.
+  # This is intentionally simple for Level 0.
+  orchestrate:
+    record:
+      contract:
+        ref: state.contract
+      result:
+        ref: state.result
+      verdict:
+        ref: output
+      classification:
+        if:
+          condition:
+            ref: output.conforms
+          then: confirmed
+          else: exception
+      converged:
+        ref: output.conforms

@@ -245,6 +245,20 @@ struct Value(ImplicitlyCopyable, Copyable, Movable):
         v.fields = ArcPointer(d^)
         return v^
 
+    @staticmethod
+    fn error_with(
+        var code: String, var message: String, var extra: Dict[String, Value]
+    ) -> Self:
+        """An Error carrying additional structured detail alongside `message`
+        -- a source line, an offending key, and so on."""
+        var v = Value()
+        v.tag = ERROR
+        v.s = code^
+        var d = extra^
+        d[String("message")] = Value.string(message^)
+        v.fields = ArcPointer(d^)
+        return v^
+
     # --- Predicates --------------------------------------------------------
 
     fn is_null(self) -> Bool:

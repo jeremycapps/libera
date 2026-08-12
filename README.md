@@ -1,16 +1,38 @@
-# Libera Kernel
+# Libera
 
-The Mojo evaluation substrate from *Model Kernel, Domain, and Strategy
-Architecture* — layer 1 only. Domain and Strategy are **not** built here, by
-design.
+An implementation of *Model Kernel, Domain, and Strategy Architecture* —
+layers 1 and 2. Strategy is **not** built, by design.
 
 ```
-kernel/value.mojo   Value: the universal representable object
-kernel/eval.mojo    Resolve(ref, props) and Evaluate(expr, props)
-kernel/ir.mojo      Construction helpers for the normalized Model IR
+kernel/value.mojo     Value: the universal representable object
+kernel/eval.mojo      Resolve(ref, props) and Evaluate(expr, props)
+kernel/ir.mojo        Construction helpers for the normalized Model IR
+
+modelir/text.mojo     Byte-level text helpers
+modelir/yaml.mojo     YAML subset reader -> plain data Values
+modelir/compile.mojo  Data tree -> normalized Model IR
+
+domain/model.mojo     DomainModel: a YAML model object loaded into IR
+domain/run.mojo       Contract -> Result -> Verdict -> CurrentState -> Snapshot
+
+models/               Model documents (YAML)
 testkit/harness.mojo  Assertion harness (Mojo 0.26 has no `mojo test`)
-tests/              The suite; `run_all.mojo` is the entry point
+tests/                The suite; `run_all.mojo` is the entry point
 ```
+
+The layering the doc asks for, top to bottom:
+
+```
+YAML model document          models/domain-count-level-0.yaml
+  -> plain data tree         modelir/yaml.mojo
+  -> normalized Model IR     modelir/compile.mojo
+  -> kernel evaluation       kernel/eval.mojo
+  -> Domain protocol         domain/run.mojo
+```
+
+Each arrow is a separate module because each is a separate concern: the reader
+has no opinion about operators, the compiler has no opinion about syntax, and
+the kernel has no opinion about Domain.
 
 ## Running the tests
 
@@ -24,8 +46,8 @@ Or directly:
 mojo run -I . tests/run_all.mojo
 ```
 
-Exits non-zero on any failure. Current status: **237 assertions, 0 failures**,
-including K0 from doc §2.3.
+Exits non-zero on any failure. Current status: **416 assertions, 0 failures**,
+including K0 from doc §2.3 and D0/D1 with traces A and B from doc §3.3.
 
 ## The kernel law
 
@@ -109,18 +131,76 @@ resolves its `@`-prefixed qualifier as an ordinary props key, so a host can
 bind other models by name; an unbound qualifier reports `unresolved_model`
 rather than a generic missing key. External URI resolution is out of scope.
 
+# YAML authoring format
+
+An expression is a **single-key mapping whose key names an operator**, exactly
+as the architecture doc writes them:
+
+```yaml
+conforms:
+  eq:
+    - ref: actual.count
+    - ref: expected.count
+```
+
+Anything else is data. A mapping with several keys, or with one key that is not
+an operator, compiles to a literal record — so `contract.expected.count` stays
+plain data while `conforms:` becomes an expression.
+
+That rule has one sharp edge: a data record whose only key happens to be named
+after an operator would be read as an expression. `literal:` is the escape
+hatch:
+
+```yaml
+literal:
+  eq: 1        # a data record with a field called "eq"
+```
+
+**Scalar typing.** Quoted text is a String; bare text that is not a recognised
+bool, null, or number is a Symbol. That is what makes the doc's
+`then: confirmed` a symbol, comparable to a verdict finding rather than to
+arbitrary text.
+
+**Supported subset:** block mappings, block sequences, flow mappings and
+sequences, comments. Anchors, aliases, tags, multiple documents, and block
+scalars (`|`, `>`) are **rejected with a parse error naming the line** rather
+than silently mis-parsed. Parse errors are Values carrying a `line` field.
+
+## Domain (layer 2)
+
+Domain is a YAML model object, not Mojo code. `domain/` holds only the wiring;
+every semantic decision — what conformance means, how state folds, what counts
+as converged — lives in the model document.
+
+Per doc §3.2, the runtime decides only which props each expression sees:
+
+    Verdict     = Evaluate(Contract.verifier, { expected, actual })
+    State_next  = Evaluate(orchestrate,       { state, output })
+
+`contract` and `result` are also bound during verification, so a richer
+verifier can reach the whole contract; the doc's two-binding form is the subset
+the Level 0 model actually uses.
+
+**Level 0 does not plan.** A Result is supplied from outside, Domain verifies
+it, folds the outcome into state, and emits a Snapshot once converged. Given
+only non-conforming results it stays unconverged rather than deriving a
+conforming one — that is Strategy's job, and there is a test pinning the
+absence.
+
+**The verifier** is taken from `contract.verifier` when present, falling back to
+`expressions.verify`. Doc §3.1 gives Contract the shape `{ expected, verifier? }`
+while §3.3 writes the verifier under `expressions:`; both work.
+
+**Missing expressions are reported when asked for, not at load time.** D0 needs
+only a verifier, so a model without an orchestrator still loads and still
+verifies.
+
 ## Deliberately not built
 
-- **No YAML front end.** Per doc §7, YAML is an authoring format that compiles
-  to Model IR; the kernel evaluates the IR. `kernel/ir.mojo` is the current
-  producer of that IR, and a YAML loader would become another producer rather
-  than getting its own path into the evaluator. K0 is therefore transcribed
-  into IR in `tests/test_k0.mojo`, with the doc's YAML quoted verbatim above it.
-- **No Domain layer** — Contract, Result, Verdict, CurrentState, Snapshot (§3).
 - **No Strategy layer** — Operators, Goal, Boundary, Candidate, Heuristic (§4).
+  Levels S0, S1, and Integration from the bootstrap table (§6) remain open.
 
-Levels D0, D1, S0, S1, and Integration from the doc's bootstrap table (§6)
-remain open. K0 is done.
+K0, D0, and D1 are done.
 
 ## Test coverage
 
@@ -130,6 +210,16 @@ remain open. K0 is done.
 | `test_resolve.mojo` | Dotted paths, list indexing, qualified refs, and every failure mode |
 | `test_eval.mojo` | Every §2.2 expression form, plus laziness, strict error propagation, determinism, and props immutability |
 | `test_k0.mojo` | The doc's K0 case, its complement, and order-independence |
+| `test_yaml.mojo` | Scalar typing, block maps and sequences, flow collections, comments, CRLF, and every rejected construct |
+| `test_compile.mojo` | Operator recognition, data-versus-construction, the `literal:` escape, lambdas, and round-trip evaluation of compiled IR |
+| `test_domain.mojo` | D0, D1, traces A and B, convergence, Snapshot, model validation, and the absence of planning |
 
-The harness itself was verified against a deliberately failing suite: all eight
-assertion kinds report correctly and the process exits 1.
+Two things were verified beyond the suite passing:
+
+- **The harness can fail.** Run against a deliberately failing suite, all eight
+  assertion kinds report correctly and the process exits 1.
+- **The domain tests are coupled to the YAML.** Three mutations of
+  `models/domain-count-level-0.yaml` — changing the contract's expected count,
+  corrupting a verdict branch, and hardcoding `converged` — each produced
+  failures (20, 5, and 11 assertions respectively) rather than passing
+  vacuously.
