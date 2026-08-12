@@ -15,6 +15,7 @@ import tests.test_yaml as test_yaml
 import tests.test_compile as test_compile
 import tests.test_domain as test_domain
 import tests.test_address as test_address
+import tests.test_write as test_write
 
 
 fn main() raises:
@@ -36,6 +37,7 @@ fn main() raises:
 
     # Address layer
     test_address.run(t)
+    test_write.run(t)
 
     # Domain (layer 2)
     test_domain.run(t)
