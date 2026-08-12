@@ -17,6 +17,7 @@ import tests.test_domain as test_domain
 import tests.test_address as test_address
 import tests.test_write as test_write
 import tests.test_policy_doc as test_policy_doc
+import tests.test_emit as test_emit
 
 
 fn main() raises:
@@ -40,6 +41,7 @@ fn main() raises:
     test_address.run(t)
     test_write.run(t)
     test_policy_doc.run(t)
+    test_emit.run(t)
 
     # Domain (layer 2)
     test_domain.run(t)
