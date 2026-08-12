@@ -18,6 +18,7 @@ import tests.test_address as test_address
 import tests.test_write as test_write
 import tests.test_policy_doc as test_policy_doc
 import tests.test_emit as test_emit
+import tests.test_layering as test_layering
 
 
 fn main() raises:
@@ -45,5 +46,8 @@ fn main() raises:
 
     # Domain (layer 2)
     test_domain.run(t)
+
+    # Architecture guards
+    test_layering.run(t)
 
     t.report()
