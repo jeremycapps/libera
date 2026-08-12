@@ -21,6 +21,13 @@ from kernel.value import Value, RECORD
 from kernel.eval import evaluate
 from kernel.ir import kv, rec
 from domain.model import DomainModel
+from domain.emit import (
+    policy_props,
+    slot_frame,
+    emit,
+    derive_classification,
+)
+from address.write import last_id
 
 
 # --- Domain object constructors --------------------------------------------
@@ -123,6 +130,64 @@ fn step(model: DomainModel, state: Value, result: Value) -> Value:
     return orchestrate(model, staged, verdict)
 
 
+fn step_with_writes(
+    model: DomainModel,
+    policy: Value,
+    state: Value,
+    result: Value,
+    step_index: Int,
+    var prev: String,
+) -> Value:
+    """One Level 0 cycle that also emits addressed writes.
+
+    Returns `{state, writes}`. `classification` is injected into the returned state
+    from the emitted pressures rather than declared in the model, so there is one
+    source of truth for whether a fold deviated.
+    """
+    if not model.is_valid():
+        return model.error.copy()
+
+    var verdict = verify(model, result)
+    if verdict.is_error():
+        return verdict^
+
+    var staged = _with_field(state, String("result"), result)
+    if staged.is_error():
+        return staged^
+
+    var next = orchestrate(model, staged, verdict)
+    if next.is_error():
+        return next^
+
+    # The first fold is the one that has not yet recorded a result.
+    var is_first = state.get_or(String("result"), Value.null()).is_null()
+
+    var snap = Value.null()
+    if converged(next):
+        snap = snapshot(model, next, Value.list(List[Value]()))
+        if snap.is_error():
+            return snap^
+
+    var props = policy_props(state, next, result, verdict, is_first, step_index)
+    var frame = slot_frame(
+        model.contract, result, verdict, state, next, snap
+    )
+    var writes = emit(policy, model.name, props, frame, step_index, prev^)
+    if writes.is_error():
+        return writes^
+
+    var classified = _with_field(
+        next, String("classification"), derive_classification(writes)
+    )
+    if classified.is_error():
+        return classified^
+
+    var out = Dict[String, Value]()
+    out[String("state")] = classified^
+    out[String("writes")] = writes^
+    return Value.record(out^)
+
+
 fn _with_field(state: Value, var key: String, value: Value) -> Value:
     if state.tag != RECORD:
         return Value.error(
@@ -171,43 +236,44 @@ fn snapshot(model: DomainModel, state: Value, trace: Value) -> Value:
     return Value.record(d^)
 
 
-fn run(model: DomainModel, results: List[Value]) -> Value:
+fn run(model: DomainModel, policy: Value, results: List[Value]) -> Value:
     """Apply supplied Results in order, stopping at convergence.
 
-    Returns `{ state, trace, converged, snapshot? }`. This is the whole of
-    Level 0's control flow -- it consumes results someone else chose, which is
-    exactly the "No search / manual result" strategy in doc 5.
+    Returns `{state, trace, classifications, converged, snapshot?}` where `trace` is
+    the write log -- one unbroken `prev` chain across every fold.
     """
     if not model.is_valid():
         return model.error.copy()
 
     var state = initial_state(model)
-    var trace = List[Value]()
+    var log = List[Value]()
+    var classifications = List[Value]()
+    var prev = String("")
 
     for k in range(len(results)):
         if converged(state):
             break
-        var next = step(model, state, results[k])
-        if next.is_error():
-            return next^
+        var folded = step_with_writes(model, policy, state, results[k], k, prev.copy())
+        if folded.is_error():
+            return folded^
 
-        var entry = Dict[String, Value]()
-        entry[String("step")] = Value.int(k)
-        entry[String("result")] = results[k].copy()
-        entry[String("verdict")] = next.get_or(
-            String("verdict"), Value.null()
+        var writes = folded.get(String("writes"))
+        for w in range(writes.len()):
+            log.append(writes.at(w))
+        var tail = last_id(writes)
+        if len(tail) > 0:
+            prev = tail^
+
+        state = folded.get(String("state"))
+        classifications.append(
+            state.get_or(String("classification"), Value.null())
         )
-        entry[String("classification")] = next.get_or(
-            String("classification"), Value.null()
-        )
-        trace.append(Value.record(entry^))
 
-        state = next^
-
-    var trace_value = Value.list(trace^)
+    var trace_value = Value.list(log^)
     var out = Dict[String, Value]()
     out[String("state")] = state.copy()
     out[String("trace")] = trace_value.copy()
+    out[String("classifications")] = Value.list(classifications^)
     out[String("converged")] = Value.bool(converged(state))
     if converged(state):
         out[String("snapshot")] = snapshot(model, state, trace_value)
