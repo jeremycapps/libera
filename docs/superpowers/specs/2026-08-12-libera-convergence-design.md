@@ -334,6 +334,12 @@ instruction.
 7. Fold in `protocol/` + conformance test
 8. Fold in `fields.md` as the governance vocabulary reference
 
+**Implementation scope.** The first plan covers steps 1–6 only. Steps 7–8 import content
+from the other repository and are therefore blocked on §7; taking them earlier would
+presume that decision. The conformance test in §8 vendors `libera.schema.yaml` as a test
+fixture rather than as `protocol/`, which gets the drift protection without committing to
+the merge.
+
 Steps 1–3 do not touch existing code.
 
 Note the split forced by the layering rule: `address/` holds the grammar and the `Write`
