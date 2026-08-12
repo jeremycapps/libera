@@ -1,9 +1,9 @@
-# Libera convergence: addressed motion in the model runtime
+# Libera convergence: addressed writes in the model runtime
 
 **Date:** 2026-08-12
 **Status:** approved design, not yet implemented
 **Scope:** folding `github.com/jeremycapps/libera` into the Mojo model runtime as a
-motion-addressing layer
+write-addressing layer
 
 ## Problem
 
@@ -44,7 +44,7 @@ Incorrect or omitted:
 
 The finding's load-bearing error was proposing Libera-style **refs**
 (`movement/change/result.count`) and a layer stack the kernel evaluates *through*. That
-would put motion vocabulary in the substrate — the exact thing both projects were built
+would put pressure vocabulary in the substrate — the exact thing both projects were built
 to avoid.
 
 ## Convergence analysis
@@ -53,7 +53,7 @@ Applying the Domain method to the convergence itself: a Contract for what a unif
 runtime must preserve, both codebases as the Result, a Verdict per element.
 
 **Contract.** One addressing scheme. Kernel stays semantically ignorant. Domain keeps
-meaning. Motion is locatable and replayable. Nothing from either side is silently
+meaning. Writes are locatable and replayable. Nothing from either side is silently
 dropped.
 
 | Libera element | Runtime equivalent | Verdict |
@@ -72,7 +72,7 @@ dropped.
 ### Three findings
 
 **1. A slot *is* a Ref.** Both are dotted paths naming a state location. A Libera path is
-a Ref plus a motion prefix. Consequence: **CurrentState needs no rewrite**, and the
+a Ref plus an address prefix. Consequence: **CurrentState needs no rewrite**, and the
 address grammar adds no kernel type and does not touch `Evaluate`.
 
 **2. `classification` is a degenerate pressure.** The Level 0 model already computes
@@ -89,24 +89,24 @@ governance half is missing, and Libera v1 already worked it out.
 ```
 kernel/     Value · Ref · Expression · Evaluate      knows nothing above it
 modelir/    YAML → Model IR                          knows syntax, not meaning
-motion/     LiberaPath · motion policy               knows addresses, not meaning
+address/    Address · Write                         knows addresses, not meaning
 domain/     Contract · Result · Verdict · State      knows meaning
 strategy/   Operator · Goal · Boundary · Heuristic   not built
 ```
 
 Two distinct arrows, which the finding fused:
 
-- **Dependency** (who may name whose vocabulary): `kernel ← motion ← domain ← strategy`
+- **Dependency** (who may name whose vocabulary): `kernel ← address ← domain ← strategy`
 - **Evaluation** (what runs): `domain → kernel`, directly and always
 
-`motion/` is a **vocabulary layer, not an evaluation stage.** It decorates writes after
+`address/` is a **vocabulary layer, not an evaluation stage.** It decorates writes after
 a fold; it is never on the evaluation path.
 
-`motion/` depends on `kernel/` for exactly one thing: a slot is a kernel `Ref`. It sits
+`address/` depends on `kernel/` for exactly one thing: a slot is a kernel `Ref`. It sits
 below `domain/` because it does not know what conformance means.
 
-**Consequence for the motion policy:** inference rules mention `conforms`, so the policy
-lives in `domain/`, not `motion/`. `motion/` owns the grammar only — which operations
+**Consequence for the write policy:** inference rules mention `conforms`, so the policy
+lives in `domain/`, not `address/`. `address/` owns the grammar only — which operations
 exist, how a path parses and renders, whether an address is well-formed.
 
 ### Replacing the lost repo boundary
@@ -118,7 +118,7 @@ vocabulary from a layer above it.
 ## §2 Data shape
 
 ```
-LiberaPath = {
+Address = {
   id:        path.contract_expected_enter     stable identity
   program:   domain-count-level-0             address space
   pressure:  boundary | movement | exception
@@ -126,23 +126,23 @@ LiberaPath = {
   slot:      ref(contract.expected)           a kernel Ref
 }
 
-Motion = { path: LiberaPath, value: Value, prev: <id> | null,
-           evidence?: Value, authority?: Value }
+Write = { id, address: Address, value: Value, prev: <id> | null,
+          evidence?: Value, authority?: Value }
 ```
 
 Every field is an existing kernel Value form. `slot` holds a `REF` inside a `RECORD`,
 which is inert under evaluation. **Zero kernel changes.**
 
-## §3 Motion policy
+## §3 Write policy
 
-Motion is inferred by the runtime and overridable — but the inference is a **declared
+Writes are inferred by the runtime and overridable — but the inference is a **declared
 expression**, not Mojo logic, so the runtime makes no semantic judgments of its own.
 
-At each fold the runtime binds props and evaluates `expressions.motion`, which returns
-candidate motions. Entries whose `when` is false are dropped; filtering on a declared
+At each fold the runtime binds props and evaluates `expressions.writes`, which returns
+candidate writes. Entries whose `when` is false are dropped; filtering on a declared
 boolean is mechanical, not semantic.
 
-**Policy props** — what a motion expression may reference:
+**Policy props** — what a write policy may reference:
 
 | name | meaning |
 |---|---|
@@ -152,8 +152,8 @@ boolean is mechanical, not semantic.
 | `result` | the Result being verified |
 | `event` | `{is_first, step}` — position in the run |
 
-**Where a motion's value comes from.** The policy declares no `value:` field. The runtime
-builds a **motion frame** and resolves each slot against it:
+**Where a write's value comes from.** The policy declares no `value:` field. The runtime
+builds a **slot frame** and resolves each slot against it:
 
 ```
 frame = { contract, result, verdict, state, next, snapshot }
@@ -165,13 +165,13 @@ at that address after the fold. This is what makes a slot genuinely a `Ref` rath
 decorative string — it must resolve, and a slot that does not is a policy error caught at
 emission.
 
-`models/motion-default.yaml` ships as the default. A model overrides by declaring its own
-`expressions.motion`.
+`models/writes-default.yaml` ships as the default. A model overrides by declaring its own
+`expressions.writes`.
 
 ```yaml
-model: motion-default
+model: writes-default
 expressions:
-  motion:
+  writes:
     list:
       - record:
           when:      {ref: event.is_first}
@@ -202,7 +202,7 @@ expressions:
 policy, not merely asserted in a test.
 
 **Slot authoring.** Slots are written as bare symbols (`contract.expected`) and parsed
-into kernel `Ref`s by `motion/`. Writing `{ref: …}` would *resolve* the path; the address
+into kernel `Ref`s by `address/`. Writing `{ref: …}` would *resolve* the path; the address
 must carry it unresolved.
 
 ### Expected emission for the doc §3.3 traces
@@ -260,7 +260,7 @@ expression; derive it from the emitted pressure/operation. `movement/advance` is
 Doc §3.1's CurrentState shape is preserved, existing tests stay meaningful, and there is
 one source of truth. The §3.3 model loses an entire `if` block.
 
-## §5 Trace becomes a motion log
+## §5 Trace becomes a write log
 
 ```
 { id, program, pressure, operation, slot, value, prev }
@@ -312,38 +312,47 @@ instruction.
 
 ## §8 Testing
 
-- **Layering test** — fails if `kernel/` mentions "contract" or "pressure", or `motion/`
+- **Layering test** — fails if `kernel/` mentions "contract" or "pressure", or `address/`
   mentions "verdict"/"conforms"/"contract". Replaces the surrendered repo boundary.
-- **Conformance test** — `LiberaPath` validates against the published
+- **Conformance test** — `Address` validates against the published
   `protocol/libera.schema.yaml`, so the runtime cannot drift from the spec it ships.
 - **Level 0 discipline** — assert no `exception/respond` is ever emitted.
-- **Mutation testing** on `motion-default.yaml`, as was done for the domain model, to
-  prove the motion tests are not vacuous.
+- **Mutation testing** on `writes-default.yaml`, as was done for the domain model, to
+  prove the write tests are not vacuous.
 - **Chain integrity** — `prev` links form one unbroken chain with no orphans.
-- **Trace fidelity** — traces A and B emit exactly the motions listed in §3.
+- **Trace fidelity** — traces A and B emit exactly the writes listed in §3.
 - **Derivation agreement** — derived `classification` matches the emitted pressure.
 
 ## §9 Build order
 
-1. `motion/path.mojo` — LiberaPath, parse/render, validation
-2. `motion/policy.mojo` — evaluate a motion expression, filter by `when`
-3. `models/motion-default.yaml`
-4. Wire into `domain/run.mojo` — emit motions, add `prev`, derive `classification`
-5. Layering test
-6. Fold in `protocol/` + conformance test
-7. Fold in `fields.md` as the governance vocabulary reference
+1. `address/grammar.mojo` — `Address`, the pressure/operation vocabulary, parse/render/validate
+2. `address/write.mojo` — `Write` and `prev`-chain helpers
+3. `models/writes-default.yaml` — the default policy
+4. `domain/emit.mojo` — evaluate the write policy, build the slot frame, resolve slots
+5. Wire into `domain/run.mojo` — emit writes, chain them, derive `classification`
+6. Layering test
+7. Fold in `protocol/` + conformance test
+8. Fold in `fields.md` as the governance vocabulary reference
 
-Steps 1–3 do not touch existing code. Strategy remains unbuilt throughout.
+Steps 1–3 do not touch existing code.
+
+Note the split forced by the layering rule: `address/` holds the grammar and the `Write`
+record, but the *evaluation* of a write policy lives in `domain/emit.mojo`, because it
+binds `output`/`verdict` props and so names Domain vocabulary. Keeping the evaluator in
+`address/` would fail the layering test in step 6.
+
+Strategy remains unbuilt throughout.
 
 ## Decisions recorded
 
 | # | Decision |
 |---|---|
 | 1 | One merged runtime; the Mojo repo is the foundation, Libera folds in |
-| 2 | Motion inferred by runtime, overridable — expressed as a declared policy model, not Mojo |
+| 2 | Writes inferred by runtime, overridable — expressed as a declared policy model, not Mojo |
 | 3 | Strategy owns `exception/respond`; Domain emits `detect` only (settles doc §8 #2) |
-| 4 | `classification` derived from motion, not hand-computed |
+| 4 | `classification` derived from emitted writes, not hand-computed |
 | 5 | Escalation is a species of respond, marked by `authority` |
 | 6 | v1 field vocabulary retained as reserved meanings, not enforced on slots |
 | 7 | Trace carries `prev` but no timestamps; observation stays Timpos's |
 | 8 | Repo naming and publishing — OPEN, no remote changes without instruction |
+| 9 | Layer named `address/`; types `Address` and `Write` (not `motion`/`Motion`) |
