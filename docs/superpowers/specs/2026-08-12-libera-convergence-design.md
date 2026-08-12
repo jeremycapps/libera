@@ -312,8 +312,11 @@ instruction.
 
 ## §8 Testing
 
-- **Layering test** — fails if `kernel/` mentions "contract" or "pressure", or `address/`
-  mentions "verdict"/"conforms"/"contract". Replaces the surrendered repo boundary.
+- **Layering test** — enumerates the `*.mojo` files under `kernel/`, `modelir/`, and
+  `address/` and fails if any module imports from a layer above it, ordering
+  `kernel < modelir < address < domain`. A narrower word check applies only to
+  `address/` files, failing if any mentions "contract", "verdict", or "conforms".
+  Replaces the surrendered repo boundary.
 - **Conformance test** — `Address` validates against the published
   `protocol/libera.schema.yaml`, so the runtime cannot drift from the spec it ships.
 - **Level 0 discipline** — assert no `exception/respond` is ever emitted.

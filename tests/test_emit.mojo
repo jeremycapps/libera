@@ -296,7 +296,7 @@ fn _duplicate_ids(mut t: TestSuite):
         kv(String("when"), Value.bool(True)),
         kv(String("pressure"), sym(String("movement"))),
         kv(String("operation"), sym(String("change"))),
-        kv(String("slot"), r(String("result.actual"))),
+        kv(String("slot"), sym(String("result.actual"))),
     )
     var policy = lst(candidate, candidate)
     var props = policy_props(
