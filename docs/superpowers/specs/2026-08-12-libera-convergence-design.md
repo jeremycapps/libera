@@ -1,7 +1,8 @@
 # Libera convergence: addressed writes in the model runtime
 
 **Date:** 2026-08-12
-**Status:** approved design, not yet implemented
+**Status:** implemented on branch `address-layer` (§1–§5, §8, §9 steps 1–6). §6–§7 remain
+open, blocked on the repo naming decision.
 **Scope:** folding `github.com/jeremycapps/libera` into the Mojo model runtime as a
 write-addressing layer
 
