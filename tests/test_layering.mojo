@@ -8,6 +8,7 @@ runtime cannot drift from the spec it implements.
 """
 
 from std.collections import List, Dict
+from std.os import listdir
 
 from kernel.value import Value, RECORD
 from modelir.yaml import parse_yaml_file
@@ -16,6 +17,15 @@ from testkit.harness import TestSuite
 
 
 comptime SCHEMA_PATH = "tests/fixtures/libera.schema.yaml"
+
+# Layer ordering, lowest first. A module in one layer may not import from any
+# layer that comes after it in this list -- enumerated from the package
+# directories themselves (via `listdir`) so a new file cannot escape the
+# check the way a hardcoded list would let it.
+comptime LAYER_ORDER_0 = "kernel"
+comptime LAYER_ORDER_1 = "modelir"
+comptime LAYER_ORDER_2 = "address"
+comptime LAYER_ORDER_3 = "domain"
 
 
 fn _read(path: String) raises -> String:
@@ -31,6 +41,20 @@ fn _imports_from(source: String, package: String) -> Bool:
     )
 
 
+fn _mojo_files_in(var dir: String) raises -> List[String]:
+    """Every `*.mojo` file directly under `dir`, as `dir/name.mojo` paths."""
+    var entries = listdir(dir)
+    var out = List[String]()
+    for k in range(len(entries)):
+        var name = entries[k]
+        if name.endswith(".mojo"):
+            var path = dir.copy()
+            path += "/"
+            path += name
+            out.append(path^)
+    return out^
+
+
 fn run(mut t: TestSuite) raises:
     _layering(t)
     _conformance(t)
@@ -39,36 +63,46 @@ fn run(mut t: TestSuite) raises:
 fn _layering(mut t: TestSuite) raises:
     t.section(String("layering / a module may not import from above"))
 
-    var kernel_files = List[String]()
-    kernel_files.append(String("kernel/value.mojo"))
-    kernel_files.append(String("kernel/eval.mojo"))
-    kernel_files.append(String("kernel/ir.mojo"))
+    var layers = List[String]()
+    layers.append(String(LAYER_ORDER_0))
+    layers.append(String(LAYER_ORDER_1))
+    layers.append(String(LAYER_ORDER_2))
+    layers.append(String(LAYER_ORDER_3))
 
-    var above_kernel = List[String]()
-    above_kernel.append(String("modelir"))
-    above_kernel.append(String("address"))
-    above_kernel.append(String("domain"))
+    # Only the layers that own real package directories are enumerated and
+    # checked; `domain` has nothing above it in this ordering, so it never
+    # needs an "above" check, but it still participates as an upper bound
+    # for the others.
+    var checked_layers = 3
 
-    for f in range(len(kernel_files)):
-        var src = _read(kernel_files[f])
-        for p in range(len(above_kernel)):
-            t.check(
-                kernel_files[f] + String(" does not import ") + above_kernel[p],
-                not _imports_from(src, above_kernel[p]),
-                String("the kernel must know nothing above it"),
-            )
+    for i in range(checked_layers):
+        var package = layers[i]
+        var files = _mojo_files_in(package)
+        t.check(
+            package + String(" directory listing is non-empty"),
+            len(files) > 0,
+            String("listdir returned no files -- the guard would be vacuous"),
+        )
 
-    var address_files = List[String]()
-    address_files.append(String("address/grammar.mojo"))
-    address_files.append(String("address/write.mojo"))
+        for f in range(len(files)):
+            var src = _read(files[f])
+            for a in range(i + 1, len(layers)):
+                var above = layers[a]
+                t.check(
+                    files[f] + String(" does not import ") + above,
+                    not _imports_from(src, above),
+                    String("a module may not import from a layer above it"),
+                )
+
+    var address_files = _mojo_files_in(String(LAYER_ORDER_2))
+    t.check(
+        String("address/ directory listing is non-empty"),
+        len(address_files) > 0,
+        String("listdir returned no files -- the guard would be vacuous"),
+    )
 
     for f in range(len(address_files)):
         var src = _read(address_files[f])
-        t.check(
-            address_files[f] + String(" does not import domain"),
-            not _imports_from(src, String("domain")),
-            String("the address layer must not name Domain vocabulary"),
-        )
         # The policy evaluator lives in domain/emit.mojo precisely because it binds
         # verdict props. If it ever moves here, this catches it.
         t.check(
@@ -80,6 +114,11 @@ fn _layering(mut t: TestSuite) raises:
             address_files[f] + String(" does not mention verdict"),
             src.find(String("verdict")) == -1,
             String("Verdict is a Domain concept"),
+        )
+        t.check(
+            address_files[f] + String(" does not mention contract"),
+            src.find(String("contract")) == -1,
+            String("Contract is a Domain concept"),
         )
 
 

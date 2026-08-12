@@ -7,7 +7,7 @@ failure here points at emission rather than at orchestration.
 from std.collections import List, Dict
 
 from kernel.value import Value, LIST, RECORD, SYMBOL
-from kernel.ir import kv, rec, sym
+from kernel.ir import kv, rec, sym, r, lst
 from domain.emit import (
     load_policy,
     policy_props,
@@ -54,6 +54,8 @@ fn run(mut t: TestSuite) raises:
     _trace_b(t, policy)
     _classification(t)
     _failures(t, policy)
+    _non_boolean_when(t)
+    _duplicate_ids(t)
 
 
 fn _loading(mut t: TestSuite, policy: Value):
@@ -254,3 +256,58 @@ fn _failures(mut t: TestSuite, policy: Value):
 fn _not_a_policy() -> Value:
     """A 'policy' that evaluates to a scalar rather than a list of candidates."""
     return Value.int(1)
+
+
+fn _non_boolean_when(mut t: TestSuite):
+    t.section(String("emit / a non-boolean when is a type error"))
+
+    # `when: "true"` looks like it should pass, but the kernel never coerces
+    # strings to booleans -- a malformed condition must surface as an error,
+    # not silently take (or drop) the branch.
+    var policy = lst(
+        rec(
+            kv(String("when"), Value.string(String("true"))),
+            kv(String("pressure"), sym(String("movement"))),
+            kv(String("operation"), sym(String("change"))),
+            kv(String("slot"), r(String("result.actual"))),
+        )
+    )
+    var props = policy_props(
+        _state(False), _state(False), _result(2), _verdict(False), True, 0
+    )
+    var frame = slot_frame(
+        _contract(), _result(2), _verdict(False), _state(False), _state(False),
+        Value.null(),
+    )
+    t.is_error(
+        String("a string 'when' is rejected rather than dropped"),
+        emit(policy, String("prog"), props, frame, 0, String("")),
+        String(E_EMIT),
+    )
+
+
+fn _duplicate_ids(mut t: TestSuite):
+    t.section(String("emit / duplicate write ids are rejected"))
+
+    # Two candidates with the same slot and operation produce the same
+    # write id within one fold -- the address grammar does not distinguish
+    # them, so `emit` must catch it rather than let the trace go ambiguous.
+    var candidate = rec(
+        kv(String("when"), Value.bool(True)),
+        kv(String("pressure"), sym(String("movement"))),
+        kv(String("operation"), sym(String("change"))),
+        kv(String("slot"), r(String("result.actual"))),
+    )
+    var policy = lst(candidate, candidate)
+    var props = policy_props(
+        _state(False), _state(False), _result(2), _verdict(False), True, 0
+    )
+    var frame = slot_frame(
+        _contract(), _result(2), _verdict(False), _state(False), _state(False),
+        Value.null(),
+    )
+    t.is_error(
+        String("a repeated slot/operation pair yields a duplicate id error"),
+        emit(policy, String("prog"), props, frame, 0, String("")),
+        String(E_EMIT),
+    )

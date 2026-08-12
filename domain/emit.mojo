@@ -10,7 +10,7 @@ candidates whose declared `when` is false, and resolves each slot against a fram
 
 from std.collections import List, Dict
 
-from kernel.value import Value, RECORD, LIST, SYMBOL, STRING
+from kernel.value import Value, RECORD, LIST, BOOL
 from kernel.eval import evaluate, resolve
 from modelir.yaml import parse_yaml_file
 from modelir.compile import compile_expression
@@ -102,6 +102,7 @@ fn emit(
         )
 
     var out = List[Value]()
+    var seen_ids = List[String]()
     var last = prev^
 
     for k in range(candidates.len()):
@@ -115,6 +116,12 @@ fn emit(
         var when = c.get_or(String("when"), Value.bool(True))
         if when.is_error():
             return when^
+        if when.tag != BOOL:
+            return Value.error(
+                String(E_EMIT),
+                String("write candidate 'when' must be boolean, got ")
+                + c.to_string(),
+            )
         if not when.truthy():
             continue
 
@@ -152,7 +159,17 @@ fn emit(
         var w = write(addr, value, step, last.copy())
         if w.is_error():
             return w^
-        last = w.get(String("id")).s.copy()
+
+        var wid = w.get(String("id")).s.copy()
+        for j in range(len(seen_ids)):
+            if seen_ids[j] == wid:
+                return Value.error(
+                    String(E_EMIT),
+                    String("duplicate write id '") + wid + String("'"),
+                )
+        seen_ids.append(wid.copy())
+
+        last = wid^
         out.append(w^)
 
     return Value.list(out^)

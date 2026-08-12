@@ -9,9 +9,9 @@ what conformance means, or why a pressure was chosen. Deciding that is the write
 policy's job, and the policy lives in `domain/`.
 """
 
-from std.collections import List, Dict
+from std.collections import Dict
 
-from kernel.value import Value, RECORD, REF
+from kernel.value import Value
 
 
 comptime E_ADDRESS = "address_error"

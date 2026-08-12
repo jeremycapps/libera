@@ -4,9 +4,9 @@ This is Timpos's Moment minus the timestamp. The `prev` chain is structure; the
 timestamp is observation, and observation stays Timpos's concern.
 """
 
-from std.collections import List, Dict
+from std.collections import Dict
 
-from kernel.value import Value, RECORD, LIST, STRING
+from kernel.value import Value, LIST, STRING
 
 
 comptime E_WRITE = "write_error"

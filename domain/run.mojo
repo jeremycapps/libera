@@ -47,6 +47,10 @@ fn initial_state(model: DomainModel) -> Value:
 
     `contract` is seeded so the orchestrator's `ref: state.contract` resolves on
     the very first fold; the rest stay null until something has been observed.
+    `classification` is still seeded null here even though the model no longer
+    declares it: this is the value before any fold, and `step_with_writes`
+    overwrites it once writes exist to derive it from. Plain `step` leaves it
+    as orchestration produced it -- see its docstring.
     """
     if not model.is_valid():
         return model.error.copy()
@@ -115,6 +119,14 @@ fn step(model: DomainModel, state: Value, result: Value) -> Value:
     The Result is placed into state *before* orchestration so that the
     orchestrator's `ref: state.result` sees the observation this verdict is
     about, rather than the previous one.
+
+    The state this returns carries no `classification` key -- the model no
+    longer declares one, so `.get("classification")` on this result is a
+    `key_error`, not a null. That is because classification is now derived
+    from the writes a fold emits (`derive_classification` in
+    `domain/emit.mojo`), and `step` alone does not emit writes. A caller that
+    needs classification must go through `step_with_writes`, which folds the
+    derived value back into the returned state.
     """
     if not model.is_valid():
         return model.error.copy()
