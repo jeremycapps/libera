@@ -1,0 +1,5 @@
+.mojopkg
+*.mojopkg
+build/
+.pixi/
+.DS_Store
