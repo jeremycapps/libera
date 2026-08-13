@@ -212,10 +212,20 @@ fn _conformance(mut t: TestSuite) raises:
     # them rather than quietly drop the constraints it is meant to respect.
     var boundaries = schema.get(String("boundaries"))
     t.not_error(String("schema declares its scope boundaries"), boundaries)
-    t.eq_int(String("five scope boundaries"), boundaries.len(), 5)
+    t.eq_int(String("six scope boundaries"), boundaries.len(), 6)
     var boundary_text = boundaries.to_string()
     t.check(
         String("Address does not define execution or meaning"),
         boundary_text.find(String("execution or meaning")) >= 0,
         String("the boundary this whole layering rests on is missing"),
+    )
+    t.check(
+        String("Address does not coordinate objectives"),
+        boundary_text.find(String("coordinate objectives")) >= 0,
+        String("boundary missing -- Corus coordinates, Address does not"),
+    )
+    t.check(
+        String("Address does not decide truth"),
+        boundary_text.find(String("decide truth")) >= 0,
+        String("boundary missing -- Domain decides conformance, Address does not"),
     )
