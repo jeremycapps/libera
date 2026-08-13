@@ -1,0 +1,133 @@
+# A strategy that notices its own response did nothing.
+#
+# `strategy-issue-triage.yaml` can tell that it has answered twice. It cannot
+# tell that asking for logs accomplished nothing -- its only way to stop is a
+# budget. Two different conclusions are being confused there:
+#
+#   exhausted    the budget ran out; says nothing about whether anything worked
+#   ineffective  something was tried and the deviation did not move
+#
+# The second is knowable earlier and names a cause rather than a limit. This
+# document adds it, and nothing else: same contract, same shape of candidate,
+# one new question asked between folds.
+#
+# The test is over `finding`, not over the whole verdict, and the difference is
+# not academic. A supplier can answer `ask_for_logs` by resubmitting with a
+# resolution_path added and still no root cause: `actual` changed, so the two
+# verdicts differ structurally, but the deviation is untouched. Comparing
+# verdicts would report progress that did not happen.
+#
+# `finding` is this model's vocabulary rather than the protocol's, which is why
+# the test lives in this document instead of in the runtime.
+
+model: strategy-issue-effectiveness
+version: 0.1
+
+boundary:
+  # Deliberately larger than the number of attempts the tests need, so that an
+  # escalation arriving early is unambiguously futility rather than the budget.
+  max_attempts: 3
+
+expressions:
+
+  # Unchanged in kind from rung 2: the first candidate whose `when` holds.
+  # `authority: null` is required, not decorative -- the last write policy below
+  # reads `response.authority`, and a missing key is an unresolved-ref error
+  # rather than an absent value.
+  candidates:
+    list:
+      - record:
+          when:
+            eq:
+              - ref: verdict.finding
+              - missing_root_cause
+          action: ask_for_logs
+          to: engineering
+          because:
+            ref: verdict.finding
+          authority: null
+
+      - record:
+          when: true
+          action: route_back
+          to:
+            ref: result.source
+          because:
+            ref: verdict.finding
+          authority: null
+
+  # Did the deviation move? Consulted only once a response has been recorded,
+  # so `previous` is always populated.
+  progress:
+    not:
+      eq:
+        - ref: verdict.finding
+        - ref: previous.verdict.finding
+
+  # It did not. Hand it up, and say what was already tried -- an escalation that
+  # cannot name the failed attempt is asking someone to start over.
+  ineffective:
+    record:
+      action: escalate
+      to: engineering_lead
+      because:
+        ref: verdict.finding
+      tried:
+        ref: previous.response.action
+      effective: false
+      authority: engineering_lead
+
+  # The budget ran out without the deviation ever standing still. A different
+  # conclusion, so a different destination.
+  exhausted:
+    record:
+      action: escalate
+      to: product
+      because:
+        ref: verdict.finding
+      authority: product_owner
+
+  writes:
+    list:
+
+      # An ordinary response.
+      - record:
+          when:
+            and:
+              - not:
+                  ref: next.converged
+              - not:
+                  ref: ineffective
+          pressure: exception
+          operation: respond
+          slot: response.action
+
+      # The fact. Strategy detects this about its own conduct -- Domain detects
+      # deviation in a Result, which is a different subject. The boundary that
+      # matters is not who may write `detect` but what a detect write is about.
+      - record:
+          when:
+            ref: ineffective
+          pressure: exception
+          operation: detect
+          slot: response.effective
+
+      # The decision that follows from the fact. Declared after it, because
+      # `emit` walks this list in order and the log should read as an argument.
+      - record:
+          when:
+            ref: ineffective
+          pressure: exception
+          operation: respond
+          slot: response.action
+
+      # Who it was handed to.
+      - record:
+          when:
+            not:
+              eq:
+                - ref: response.authority
+                - null
+          pressure: exception
+          operation: respond
+          slot: response.authority
