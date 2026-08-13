@@ -95,6 +95,19 @@ fn load_strategy(path: String) raises -> Value:
             return ir^
         d[String("exhausted")] = ir^
 
+    # Effectiveness detection. Absent for strategies that only count attempts.
+    if exprs.has(String("progress")):
+        var ir = compile_expression(exprs.get(String("progress")))
+        if ir.is_error():
+            return ir^
+        d[String("progress")] = ir^
+
+    if exprs.has(String("ineffective")):
+        var ir = compile_expression(exprs.get(String("ineffective")))
+        if ir.is_error():
+            return ir^
+        d[String("ineffective")] = ir^
+
     # Search machinery (rung 3). Absent for strategies that only respond.
     if root.has(String("goal")):
         var goal = root.get(String("goal"))
@@ -220,6 +233,20 @@ fn load_strategy(path: String) raises -> Value:
             ),
         )
 
+    # A progress test with no response to it computes a value nobody reads; an
+    # ineffective response with no test can never fire. Each is half a feature,
+    # and half a feature that loads silently is worse than one that refuses.
+    var has_progress = d.__contains__(String("progress"))
+    var has_ineffective = d.__contains__(String("ineffective"))
+    if has_progress != has_ineffective:
+        return Value.error(
+            String(E_STRATEGY),
+            String(
+                "effectiveness detection needs both 'expressions.progress' and"
+                " 'expressions.ineffective'; this declares only one"
+            ),
+        )
+
     return Value.record(d^)
 
 
@@ -265,6 +292,18 @@ fn has_boundary(strategy: Value) -> Bool:
     if strategy.is_error():
         return False
     return strategy.get_or(String("max_attempts"), Value.null()).tag == INT
+
+
+fn has_progress_test(strategy: Value) -> Bool:
+    """Whether this strategy can tell that its own response changed nothing.
+
+    Both halves are required at load time, so testing one is testing both.
+    """
+    if strategy.is_error():
+        return False
+    return strategy.has(String("progress")) and strategy.has(
+        String("ineffective")
+    )
 
 
 fn exhausted(strategy: Value, attempts: Int) -> Bool:

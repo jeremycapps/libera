@@ -1,0 +1,13 @@
+# Invalid: a response for a conclusion nothing can reach.
+model: strategy-ineffective-without-progress
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: a
+  ineffective:
+    record:
+      action: escalate
+  writes:
+    list: []
