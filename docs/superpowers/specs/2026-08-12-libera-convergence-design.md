@@ -318,7 +318,7 @@ governance  evidence_required · authority_required    ← evidence, authority
 
 Recorded, not built.
 
-## §7 Naming and publishing — OPEN DECISION
+## §7 Naming and publishing — SETTLED
 
 `~/Dev/libera` (Mojo runtime) and `github.com/jeremycapps/libera` (published spec) share
 a name and no content.
@@ -327,8 +327,16 @@ a name and no content.
 merged repo be spec-plus-reference-runtime. Scope-boundary claims then attach to
 `protocol/`, and the README must say so explicitly.
 
-**This changes what a public repo is.** No remote will be modified without explicit
-instruction.
+**Settled:** consolidate under the existing upstream repo, keeping its history. The two
+unrelated histories are joined with `--allow-unrelated-histories`, so the spec's 21 commits
+and the runtime's 18 both survive. v1 is preserved twice over: tagged (`v1-final`,
+`spec-only`) and archived under `archive/v1/`.
+
+The conformance test now reads `protocol/libera.schema.yaml` directly rather than a
+vendored copy, so spec drift is structurally impossible rather than merely tested. This
+closes §9 steps 7-8 and unblocks §6.
+
+**Nothing has been pushed.** No SSH key or `gh` is available in the working environment.
 
 ## §8 Testing
 
@@ -383,6 +391,6 @@ Strategy remains unbuilt throughout.
 | 5 | Escalation is a species of respond, marked by `authority` |
 | 6 | v1 field vocabulary retained as reserved meanings, not enforced on slots |
 | 7 | Trace carries `prev` but no timestamps; observation stays Timpos's |
-| 8 | Repo naming and publishing — OPEN, no remote changes without instruction |
+| 8 | Repo naming and publishing — SETTLED: consolidate under upstream, histories joined, v1 tagged and archived |
 | 9 | Layer named `address/`; types `Address` and `Write` (not `motion`/`Motion`) |
 | 10 | `trace` is a projection, not a stored field; a snapshot's log position is its trace (settles doc §8 #5) |

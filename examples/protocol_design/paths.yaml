@@ -1,0 +1,21 @@
+program:
+  id: program.protocol_design
+
+paths:
+  - id: path.facia_surface_model_status
+    program: program.protocol_design
+    pressure: movement
+    operation: change
+    slot: facia_surface_model.status
+
+  - id: path.facia_route_examples
+    program: program.protocol_design
+    pressure: movement
+    operation: advance
+    slot: facia_routes.examples
+
+  - id: path.facia_surface_model_drift
+    program: program.protocol_design
+    pressure: exception
+    operation: detect
+    slot: facia_surface_model.drift

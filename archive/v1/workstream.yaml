@@ -1,0 +1,11 @@
+workstream:
+  id: string
+  libera_version: string
+
+states:
+  "{type}/{id}/{field}":
+    values:
+      - string
+
+  "{type}/{id}/{field_with_typed_value}":
+    value_type: string

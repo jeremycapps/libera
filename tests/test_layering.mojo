@@ -16,7 +16,7 @@ from address.grammar import is_pressure, is_operation, valid_pair
 from testkit.harness import TestSuite
 
 
-comptime SCHEMA_PATH = "tests/fixtures/libera.schema.yaml"
+comptime SCHEMA_PATH = "protocol/libera.schema.yaml"
 
 # Layer ordering, lowest first. A module in one layer may not import from any
 # layer that comes after it in this list -- enumerated from the package
@@ -178,4 +178,43 @@ fn _conformance(mut t: TestSuite) raises:
         String("slot is required"),
         required_text.find(String("slot")) >= 0,
         String("slot missing from required fields"),
+    )
+
+    # The schema declares the pressure and operation enums a second time, under
+    # `path.fields`. Checking them independently of the `pressures:` block above
+    # catches a schema that contradicts itself as well as a runtime that has
+    # drifted from it.
+    var fields = schema.get(String("path")).get(String("fields"))
+    t.not_error(String("schema declares path.fields"), fields)
+
+    var pressure_values = fields.get(String("pressure")).get(String("values"))
+    t.eq_int(String("pressure enum has three values"), pressure_values.len(), 3)
+    for k in range(pressure_values.len()):
+        var p = pressure_values.at(k)
+        t.check(
+            String("enum pressure '") + p.s + String("' is recognised"),
+            p.is_text() and is_pressure(p.s),
+            String("runtime does not know this pressure"),
+        )
+
+    var operation_values = fields.get(String("operation")).get(String("values"))
+    t.eq_int(String("operation enum has six values"), operation_values.len(), 6)
+    for k in range(operation_values.len()):
+        var o = operation_values.at(k)
+        t.check(
+            String("enum operation '") + o.s + String("' is recognised"),
+            o.is_text() and is_operation(o.s),
+            String("runtime does not know this operation"),
+        )
+
+    # The scope boundaries are part of the specification. The runtime must ship
+    # them rather than quietly drop the constraints it is meant to respect.
+    var boundaries = schema.get(String("boundaries"))
+    t.not_error(String("schema declares its scope boundaries"), boundaries)
+    t.eq_int(String("five scope boundaries"), boundaries.len(), 5)
+    var boundary_text = boundaries.to_string()
+    t.check(
+        String("Libera does not define execution or meaning"),
+        boundary_text.find(String("execution or meaning")) >= 0,
+        String("the boundary this whole layering rests on is missing"),
     )
