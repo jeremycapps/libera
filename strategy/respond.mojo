@@ -95,6 +95,19 @@ fn load_strategy(path: String) raises -> Value:
             return ir^
         d[String("exhausted")] = ir^
 
+    # Effectiveness detection. Absent for strategies that only count attempts.
+    if exprs.has(String("progress")):
+        var ir = compile_expression(exprs.get(String("progress")))
+        if ir.is_error():
+            return ir^
+        d[String("progress")] = ir^
+
+    if exprs.has(String("ineffective")):
+        var ir = compile_expression(exprs.get(String("ineffective")))
+        if ir.is_error():
+            return ir^
+        d[String("ineffective")] = ir^
+
     # Search machinery (rung 3). Absent for strategies that only respond.
     if root.has(String("goal")):
         var goal = root.get(String("goal"))
@@ -220,6 +233,20 @@ fn load_strategy(path: String) raises -> Value:
             ),
         )
 
+    # A progress test with no response to it computes a value nobody reads; an
+    # ineffective response with no test can never fire. Each is half a feature,
+    # and half a feature that loads silently is worse than one that refuses.
+    var has_progress = d.__contains__(String("progress"))
+    var has_ineffective = d.__contains__(String("ineffective"))
+    if has_progress != has_ineffective:
+        return Value.error(
+            String(E_STRATEGY),
+            String(
+                "effectiveness detection needs both 'expressions.progress' and"
+                " 'expressions.ineffective'; this declares only one"
+            ),
+        )
+
     return Value.record(d^)
 
 
@@ -265,6 +292,18 @@ fn has_boundary(strategy: Value) -> Bool:
     if strategy.is_error():
         return False
     return strategy.get_or(String("max_attempts"), Value.null()).tag == INT
+
+
+fn has_progress_test(strategy: Value) -> Bool:
+    """Whether this strategy can tell that its own response changed nothing.
+
+    Both halves are required at load time, so testing one is testing both.
+    """
+    if strategy.is_error():
+        return False
+    return strategy.has(String("progress")) and strategy.has(
+        String("ineffective")
+    )
 
 
 fn exhausted(strategy: Value, attempts: Int) -> Bool:
@@ -338,3 +377,60 @@ fn escalation(strategy: Value, props: Value) -> Value:
             String("strategy has no 'exhausted' response"),
         )
     return evaluate(strategy.get(String("exhausted")), props)
+
+
+fn progress_props(
+    verdict: Value, prev_verdict: Value, prev_response: Value
+) -> Value:
+    """What a progress test may reference.
+
+    `previous` is one pair rather than two loose bindings, because
+    `previous.verdict` must be the verdict `previous.response` was aimed at.
+    Packaging them together is what keeps that true at every call site.
+    """
+    var p = Dict[String, Value]()
+    p[String("verdict")] = prev_verdict.copy()
+    p[String("response")] = prev_response.copy()
+
+    var d = Dict[String, Value]()
+    d[String("verdict")] = verdict.copy()
+    d[String("previous")] = Value.record(p^)
+    return Value.record(d^)
+
+
+fn progress(strategy: Value, props: Value) -> Value:
+    """Did the deviation move? A BOOL Value, or an Error.
+
+    Never consulted before a response has been recorded, so `previous` is always
+    populated and the test never reaches through a null -- which is why this
+    needs no presence operator to be written safely.
+    """
+    if strategy.is_error():
+        return strategy.copy()
+    if not strategy.has(String("progress")):
+        return Value.error(
+            String(E_STRATEGY), String("strategy has no 'progress' test")
+        )
+
+    var got = evaluate(strategy.get(String("progress")), props)
+    if got.is_error():
+        return got^
+    if got.tag != BOOL:
+        return Value.error(
+            String(E_STRATEGY),
+            String("'progress' must evaluate to a boolean, got ")
+            + got.to_string(),
+        )
+    return got^
+
+
+fn ineffective(strategy: Value, props: Value) -> Value:
+    """The response for a previous response that changed nothing."""
+    if strategy.is_error():
+        return strategy.copy()
+    if not strategy.has(String("ineffective")):
+        return Value.error(
+            String(E_STRATEGY),
+            String("strategy has no 'ineffective' response"),
+        )
+    return evaluate(strategy.get(String("ineffective")), props)

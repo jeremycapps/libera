@@ -1,0 +1,15 @@
+# Valid to load, wrong at evaluation: `progress` yields a symbol, not a boolean.
+model: strategy-progress-not-boolean
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: a
+  progress:
+    ref: verdict.finding
+  ineffective:
+    record:
+      action: escalate
+  writes:
+    list: []

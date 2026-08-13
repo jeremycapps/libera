@@ -184,6 +184,7 @@ than it is:
 |---|---|---|
 | 1 | `strategy-route-back.yaml` | One fixed response, and no way to stop |
 | 2 | `strategy-issue-triage.yaml` | Several candidates, a selection rule, a boundary |
+| 2b | `strategy-issue-effectiveness.yaml` | A progress test, and escalation on futility |
 | 3 | `strategy-count-search.yaml` | Bounded search over composed operators |
 
 **Selection is rule-based, not scored** (rung 2). Each candidate declares a `when`;
@@ -199,6 +200,23 @@ escalates, and the escalation names an `authority`.
 who can make the decision count. This is what `due ↔ authority` in `docs/fields.md`
 predicted from the opposite direction.
 
+**Exhausted and ineffective are different conclusions.** A boundary reports that the
+budget ran out, which says nothing about whether anything was working. A strategy
+declaring `expressions.progress` can compare the deviation across folds and conclude
+that what it tried changed nothing — knowable before the budget runs out, and naming a
+cause rather than a limit. Futility takes precedence when both hold.
+
+The comparison is over the model's own deviation vocabulary, not over whole verdicts: a
+resubmission can change `actual` while leaving the finding untouched, and reporting that
+as progress would be wrong. Since the deviation's name is the model's word rather than
+the protocol's, the model declares the test — the same relationship `goal.satisfy` has
+with search.
+
+`exception/detect` records the fact and `exception/respond` the decision that follows,
+which settles what "Domain only detects" meant: **Strategy may detect, about its own
+conduct.** Domain detects deviation in a Result; Strategy detects the failure of its own
+response. Neither detects the other's subject.
+
 **Rung 3 closes the loop.** `converge` lets Strategy propose Results until Domain
 accepts one, so the runtime can reach a contract on its own. The goal and heuristic
 guide the search; they never decide the outcome. A proposal is still just a Result and
@@ -211,9 +229,6 @@ the contract and showing the proposal rejected anyway.
 - **Domain never emits `exception/respond`.** Responding to a deviation means choosing
   what to try next. The grammar knows the operation; Domain Level 0 never emits it, and
   a test pins the absence.
-- **Strategy counts answers, not progress.** Rung 2 knows it responded twice; it does
-  not know that asking for logs accomplished nothing. Designed in
-  `docs/superpowers/specs/2026-08-13-response-effectiveness-design.md`, not yet built.
 - **No `has` operator**, and no way to bind a helper into a verifier's props. This is
   why `issue-completeness.yaml` spells out its presence tests once per field.
 - **No operator `cost` or `max_cost`.** Depth bounds the search adequately; weighing
@@ -249,7 +264,7 @@ Two things were verified beyond the suite passing:
 
 - **The harness can fail.** Run against a deliberately failing suite, all eight
   assertion kinds report correctly and the process exits 1.
-- **The tests are coupled to the data.** A semantic mutation of **each of the six model
+- **The tests are coupled to the data.** A semantic mutation of **each of the seven model
   documents** in `models/`, and of `protocol/address.schema.yaml`, produces failures
   rather than passing vacuously — verified by mutating one value per file and running the
   suite against it. The conformance test reads the canonical schema directly, so the

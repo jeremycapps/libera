@@ -1,0 +1,14 @@
+# Invalid: a progress test whose conclusion nothing acts on.
+model: strategy-progress-without-ineffective
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: a
+  progress:
+    eq:
+      - ref: verdict.finding
+      - ref: previous.verdict.finding
+  writes:
+    list: []

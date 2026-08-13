@@ -1,0 +1,42 @@
+# Regression fixture: an `ineffective` response that reads from BOTH environments.
+#
+# `previous.response.action` exists only in the previous-pair the loop carries;
+# `result.source` exists only in `respond_props`, the environment every other
+# response form (candidate, escalation) receives. If the loop hands `ineffective`
+# either half alone, one of these two refs resolves to an unresolved-ref error.
+# Reading both pins the union: the ineffective response must see the same
+# environment its sibling candidates do, plus the previous pair.
+model: strategy-ineffective-reads-full-props
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: ask_for_logs
+          to: engineering
+          authority: null
+  progress:
+    not:
+      eq:
+        - ref: verdict.finding
+        - ref: previous.verdict.finding
+  ineffective:
+    record:
+      action: escalate
+      # From the previous-pair -- absent from respond_props.
+      tried:
+        ref: previous.response.action
+      # From respond_props -- absent from the previous-pair.
+      source:
+        ref: result.source
+      effective: false
+      authority: engineering_lead
+  writes:
+    list:
+      - record:
+          when:
+            not:
+              ref: next.converged
+          pressure: exception
+          operation: respond
+          slot: response.action
