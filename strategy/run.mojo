@@ -334,11 +334,19 @@ fn run(
         # it immediately is what the boundary alone cannot express.
         var response: Value
         if futile:
-            # `ineffective`'s expression reads `previous.response.action` --
-            # `props` (respond_props) carries no `previous`, but the pair this
-            # loop just judged progress against is exactly what it needs.
+            # An `ineffective` response sees the same environment every other
+            # response form does -- `respond_props` -- so it can reach
+            # `result.source` or `contract` exactly as a candidate beside it
+            # could. It additionally gets `previous`, the verdict/response pair
+            # this loop just judged progress against, since concluding
+            # ineffectiveness is the one decision that reasons about the last
+            # thing tried. The `previous` sub-record is sourced from
+            # `progress_props` so its shape has a single definition.
+            var prev_pair = progress_props(
+                verdict, prev_verdict, prev_response
+            ).get(String("previous"))
             response = ineffective(
-                strategy, progress_props(verdict, prev_verdict, prev_response)
+                strategy, _with(props, String("previous"), prev_pair)
             )
         elif over_boundary:
             response = escalation(strategy, props)

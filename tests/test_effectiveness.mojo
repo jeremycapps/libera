@@ -59,6 +59,7 @@ fn run(mut t: TestSuite) raises:
     _deviation_stands_still(t, model, strategy, policy)
     _futility_beats_exhaustion(t, model, policy)
     _the_log_reads_as_an_argument(t, model, strategy, policy)
+    _ineffective_sees_the_full_environment(t, model, policy)
 
 
 fn _validation(mut t: TestSuite) raises:
@@ -420,6 +421,56 @@ fn _the_log_reads_as_an_argument(
         if s.s == String("response.effective"):
             n += 1
     t.eq_int(String("a fold that moved emits no detect"), n, 0)
+
+
+fn _ineffective_sees_the_full_environment(
+    mut t: TestSuite, model: DomainModel, policy: Value
+) raises:
+    t.section(
+        String("effectiveness / an ineffective response sees respond_props")
+    )
+
+    # An `ineffective` response is a response like any other, and must reach the
+    # same environment its sibling candidates do. The loop builds this props
+    # itself, so this can only be exercised through a full run, not a direct
+    # `ineffective(...)` call. The fixture's response reads `result.source`
+    # (respond_props-only) alongside `previous.response.action` (previous-pair-
+    # only); the narrower props that shipped would leave the first unresolved.
+    var strategy = load_strategy(
+        String("tests/fixtures/strategy-ineffective-reads-full-props.yaml")
+    )
+    t.not_error(String("the fixture loads"), strategy)
+
+    # Two results whose finding does not move: fold 2 is futile.
+    var results = List[Value]()
+    results.append(
+        _issue(Value.null(), _text(String("alice")), _text(String("rollback")))
+    )
+    results.append(_issue(Value.null(), _text(String("alice")), Value.null()))
+
+    var out = run_with_strategy(model, strategy, policy, results)
+    # If the ineffective response hit an unresolved ref, `run` returns that error
+    # as the whole result -- so this assertion alone catches the regression.
+    t.not_error(String("the run completes without an unresolved ref"), out)
+    t.eq_value(
+        String("it stopped as ineffective"),
+        out.get(String("stopped")),
+        sym(String("ineffective")),
+    )
+
+    var escalation = out.get(String("responses")).at(1)
+    # The respond_props half: reachable, and carrying the supplier's name.
+    t.eq_value(
+        String("the escalation reached result.source"),
+        escalation.get(String("source")),
+        sym(String("support")),
+    )
+    # The previous-pair half: still reachable, unchanged by the widening.
+    t.eq_value(
+        String("and still reached previous.response.action"),
+        escalation.get(String("tried")),
+        sym(String("ask_for_logs")),
+    )
 
 
 fn _count_operation(trace: Value, var op: String) -> Int:

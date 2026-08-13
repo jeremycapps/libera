@@ -98,6 +98,16 @@ Binding the response, and not only the verdicts, is what makes the question *"di
 thing I tried work?"* rather than *"did anything change?"* It also lets a model reason
 about a specific response later without another props change.
 
+**`ineffective` is a response, and sees a response's full environment.** It is evaluated
+against `respond_props` — `{ contract, result, verdict, state, next }`, exactly what a
+candidate and `escalation` receive — *widened with* the `previous` pair, giving
+`{ contract, result, verdict, state, next, previous: { verdict, response } }`. It is the
+one response form that reasons about the last thing tried, so it alone gets `previous`;
+but it must not be *narrowed* to only that pair, or an `ineffective` response could not
+reach `result.source` while every candidate beside it could. Sourcing `previous` from the
+same helper that builds the progress-test props keeps that sub-record's shape defined
+once.
+
 `effective: false` is load-bearing, not decorative: `emit` resolves a write's slot against
 the response frame (`domain/emit.mojo:66`), so the `detect` write's `response.effective`
 slot needs that field to exist on the response record.
@@ -140,7 +150,7 @@ futile = has_progress_test(strategy)
          and not converged(next)
          and not progress(strategy, progress_props(...))
 
-if   futile:        response = ineffective(strategy, props)
+if   futile:        response = ineffective(strategy, props + previous)
 elif over_boundary: response = escalation(strategy, props)
 else:               response = respond(strategy, props)
 ```
