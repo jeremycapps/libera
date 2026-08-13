@@ -1,0 +1,15 @@
+# Invalid: max_attempts is not an integer.
+model: strategy-bad-limit
+boundary:
+  max_attempts: soon
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: a
+  exhausted:
+    record:
+      action: escalate
+  writes:
+    list: []

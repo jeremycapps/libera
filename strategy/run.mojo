@@ -23,7 +23,7 @@ from domain.run import (
     snapshot,
 )
 from address.write import last_id
-from strategy.respond import respond_props, respond
+from strategy.respond import respond_props, respond, exhausted, escalation
 
 
 comptime E_STRATEGY_RUN = "strategy_error"
@@ -43,9 +43,19 @@ fn respond_frame(response: Value, verdict: Value, result: Value) -> Value:
 
 
 fn respond_write_props(
-    state: Value, next: Value, result: Value, verdict: Value, step: Int
+    state: Value,
+    next: Value,
+    result: Value,
+    verdict: Value,
+    response: Value,
+    step: Int,
 ) -> Value:
-    """Props for a strategy's write policy -- the same shape Domain's sees."""
+    """Props for a strategy's write policy.
+
+    Domain's shape plus `response`, so a policy can gate on what the strategy
+    actually decided -- which is how an escalation's `authority` write knows to
+    fire and an ordinary retry's does not.
+    """
     var ev = Dict[String, Value]()
     ev[String("is_first")] = Value.bool(step == 0)
     ev[String("step")] = Value.int(step)
@@ -55,6 +65,7 @@ fn respond_write_props(
     d[String("next")] = next.copy()
     d[String("result")] = result.copy()
     d[String("output")] = verdict.copy()
+    d[String("response")] = response.copy()
     d[String("event")] = Value.record(ev^)
     return Value.record(d^)
 
@@ -80,6 +91,8 @@ fn run(
     var classifications = List[Value]()
     var responses = List[Value]()
     var prev = String("")
+    var attempts = 0
+    var gave_up = False
 
     for k in range(len(results)):
         if converged(state):
@@ -108,12 +121,23 @@ fn run(
         var props = respond_props(
             model.contract, results[k], verdict, state, next
         )
-        var response = respond(strategy, props)
+
+        # The boundary is consulted before the response, not after: once the
+        # strategy has answered as many times as it is allowed to, it stops
+        # choosing among candidates and escalates instead.
+        var over_boundary = not converged(next) and exhausted(strategy, attempts)
+        var response: Value
+        if over_boundary:
+            response = escalation(strategy, props)
+        else:
+            response = respond(strategy, props)
         if response.is_error():
             return response^
 
         var frame = respond_frame(response, verdict, results[k])
-        var wprops = respond_write_props(state, next, results[k], verdict, k)
+        var wprops = respond_write_props(
+            state, next, results[k], verdict, response, k
+        )
         var rwrites = emit(
             strategy.get(String("writes")),
             model.name,
@@ -132,8 +156,15 @@ fn run(
             if len(rtail) > 0:
                 prev = rtail^
             responses.append(response^)
+            attempts += 1
 
         state = next^
+
+        # Handing off ends this strategy's involvement. Continuing to verify
+        # after escalating would be answering a question already given away.
+        if over_boundary:
+            gave_up = True
+            break
 
     var trace_value = Value.list(log^)
     var out = Dict[String, Value]()
@@ -141,6 +172,8 @@ fn run(
     out[String("trace")] = trace_value.copy()
     out[String("classifications")] = Value.list(classifications^)
     out[String("responses")] = Value.list(responses^)
+    out[String("attempts")] = Value.int(attempts)
+    out[String("exhausted")] = Value.bool(gave_up)
     out[String("converged")] = Value.bool(converged(state))
     if converged(state):
         out[String("snapshot")] = snapshot(model, state, trace_value)

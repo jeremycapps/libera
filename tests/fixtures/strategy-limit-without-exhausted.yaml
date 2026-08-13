@@ -1,0 +1,12 @@
+# Invalid: a boundary that can be crossed with no response for crossing it.
+model: strategy-limit-without-exhausted
+boundary:
+  max_attempts: 2
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: a
+  writes:
+    list: []

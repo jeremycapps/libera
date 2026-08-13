@@ -16,6 +16,7 @@ import tests.test_compile as test_compile
 import tests.test_domain as test_domain
 import tests.test_issue_model as test_issue_model
 import tests.test_strategy as test_strategy
+import tests.test_strategy_triage as test_strategy_triage
 import tests.test_address as test_address
 import tests.test_write as test_write
 import tests.test_policy_doc as test_policy_doc
@@ -52,6 +53,7 @@ fn main() raises:
 
     # Strategy (layer 3)
     test_strategy.run(t)
+    test_strategy_triage.run(t)
 
     # Architecture guards
     test_layering.run(t)

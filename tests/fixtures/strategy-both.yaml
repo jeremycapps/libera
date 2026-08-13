@@ -1,0 +1,13 @@
+# Invalid: declares two ways to pick a response.
+model: strategy-both
+expressions:
+  respond:
+    record:
+      action: a
+  candidates:
+    list:
+      - record:
+          when: true
+          action: b
+  writes:
+    list: []
