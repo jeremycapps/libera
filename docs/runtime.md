@@ -18,6 +18,10 @@ address/write.mojo    Write: a value landing at an Address, with a prev chain
 domain/model.mojo     DomainModel: a YAML model object loaded into IR
 domain/emit.mojo      Write policy evaluation and slot resolution
 domain/run.mojo       Contract -> Result -> Verdict -> CurrentState -> Snapshot
+
+strategy/respond.mojo Loading a strategy; selecting a response; the boundary
+strategy/search.mojo  Candidate generation and scoring over composed operators
+strategy/run.mojo     Driving a Domain run with a Strategy attached
 ```
 
 ## The kernel law
@@ -166,15 +170,59 @@ while §3.3 writes the verifier under `expressions:`; both work.
 only a verifier, so a model without an orchestrator still loads and still
 verifies.
 
+## Strategy (layer 3)
+
+Domain decides whether a Result conforms. Strategy decides what to do when it does
+not — which is why this layer, not Domain, owns `exception/respond`. Like Domain it
+is a YAML model object; `strategy/` holds only the wiring.
+
+Built as three rungs of one ladder rather than a single leap, because the doc's
+`count +2/+3` example jumps straight to search and makes Strategy look more abstract
+than it is:
+
+| Rung | Document | What it adds |
+|---|---|---|
+| 1 | `strategy-route-back.yaml` | One fixed response, and no way to stop |
+| 2 | `strategy-issue-triage.yaml` | Several candidates, a selection rule, a boundary |
+| 3 | `strategy-count-search.yaml` | Bounded search over composed operators |
+
+**Selection is rule-based, not scored** (rung 2). Each candidate declares a `when`;
+the first whose condition holds is taken. The last must be unconditional, or a
+deviation could arrive that nothing answers — which is a gap in the model, not a
+reason to do nothing quietly.
+
+**The boundary is what makes a strategy stoppable.** `boundary.max_attempts` bounds
+how many times it answers without converging. Crossing it does not fail silently: it
+escalates, and the escalation names an `authority`.
+
+**Escalation is a species of respond, not a peer of detect** — distinguished by naming
+who can make the decision count. This is what `due ↔ authority` in `docs/fields.md`
+predicted from the opposite direction.
+
+**Rung 3 closes the loop.** `converge` lets Strategy propose Results until Domain
+accepts one, so the runtime can reach a contract on its own. The goal and heuristic
+guide the search; they never decide the outcome. A proposal is still just a Result and
+Domain still verifies it, so a misleading heuristic costs attempts, not correctness —
+`_goal_does_not_decide_truth` pins this by giving the search a goal that contradicts
+the contract and showing the proposal rejected anyway.
+
 ## Deliberately not built
 
-- **No Strategy layer** — Operators, Goal, Boundary, Candidate, Heuristic (§4).
-  Levels S0, S1, and Integration from the bootstrap table (§6) remain open.
-- **No `exception/respond`.** Responding to a deviation means choosing what to try
-  next, which is Strategy's job. The grammar knows the operation; Level 0 never emits
-  it, and a test pins the absence.
+- **Domain never emits `exception/respond`.** Responding to a deviation means choosing
+  what to try next. The grammar knows the operation; Domain Level 0 never emits it, and
+  a test pins the absence.
+- **Strategy counts answers, not progress.** Rung 2 knows it responded twice; it does
+  not know that asking for logs accomplished nothing. Designed in
+  `docs/superpowers/specs/2026-08-13-response-effectiveness-design.md`, not yet built.
+- **No `has` operator**, and no way to bind a helper into a verifier's props. This is
+  why `issue-completeness.yaml` spells out its presence tests once per field.
+- **No operator `cost` or `max_cost`.** Depth bounds the search adequately; weighing
+  operators differently without a reason to would be ceremony.
+- **The frontier is bounded-exhaustive, not best-first.** It expands everything at each
+  depth rather than pursuing the lowest score. Fine at depth 2 with two operators; it
+  would matter with a real branching factor.
 
-K0, D0, and D1 are done.
+The bootstrap table (§6) is complete: K0, D0, D1, S0, S1, and Integration all pass.
 
 ## Test coverage
 
@@ -192,13 +240,17 @@ K0, D0, and D1 are done.
 | `test_policy_doc.mojo` | The default write policy parses, compiles, and never mentions `respond` |
 | `test_emit.mojo` | Policy evaluation, `when` filtering, slot resolution, duplicate-id rejection |
 | `test_layering.mojo` | Import-direction layering, and conformance against `protocol/address.schema.yaml` |
+| `test_issue_model.mojo` | A Domain model over a real contract shape, and that the default write policy is contract-agnostic |
+| `test_strategy.mojo` | Rung 1: a response decided and addressed, and that Strategy is optional |
+| `test_strategy_triage.mojo` | Rung 2: candidate selection, the boundary, and escalation carrying an `authority` |
+| `test_search.mojo` | Rung 3: operator composition, scoring, the closed loop, and that a goal does not decide truth |
 
 Two things were verified beyond the suite passing:
 
 - **The harness can fail.** Run against a deliberately failing suite, all eight
   assertion kinds report correctly and the process exits 1.
-- **The tests are coupled to the data.** Mutations of
-  `models/domain-count-level-0.yaml`, `models/writes-default.yaml`, and
-  `protocol/address.schema.yaml` each produce failures rather than passing vacuously.
-  The conformance test reads the canonical schema directly, so the runtime cannot
-  drift from the protocol it ships.
+- **The tests are coupled to the data.** A semantic mutation of **each of the six model
+  documents** in `models/`, and of `protocol/address.schema.yaml`, produces failures
+  rather than passing vacuously — verified by mutating one value per file and running the
+  suite against it. The conformance test reads the canonical schema directly, so the
+  runtime cannot drift from the protocol it ships.

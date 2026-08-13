@@ -31,7 +31,7 @@ kernel/     Value · Ref · Expression · Evaluate      evaluates, knows nothing
 modelir/    YAML → Model IR                          normalizes, knows syntax not meaning
 address/    Address · Write                          records where a value belongs
 domain/     Contract · Result · Verdict · State      supplies coordination semantics
-strategy/   Operator · Goal · Boundary · Heuristic   not built
+strategy/   Operator · Goal · Boundary · Heuristic   decides what to do when it fails
 ```
 
 The kernel's whole execution surface is one principle:
@@ -43,8 +43,9 @@ Value_out = Evaluate(Expression, Props)
 The boundary that makes this composable: **the kernel does not know what a contract or a
 verdict means.** Domain is one protocol compiled onto the runtime — Contract → Result →
 Verdict → CurrentState → Snapshot. Address records where values belong and what transition
-occurred. Strategy will later choose candidates, repairs, retries, heuristics, and
-escalations when convergence fails.
+occurred. Strategy chooses candidates, retries, heuristics, and escalations when
+convergence fails — built as three rungs: a fixed response, selection against a boundary,
+and bounded search over composed operators.
 
 A layering test enforces this: a module may not import from a layer above it.
 
@@ -83,12 +84,12 @@ Domain bindings. An earlier version did name twelve such types, and removing the
 | | |
 |---|---|
 | `protocol/` | The Address protocol. `address.schema.yaml` is canonical. |
-| `kernel/` `modelir/` `address/` `domain/` | The deterministic runtime. |
-| `models/` | Model documents: a Domain contract, and the default write policy. |
+| `kernel/` `modelir/` `address/` `domain/` `strategy/` | The deterministic runtime. |
+| `models/` | Model documents: two Domain contracts, three strategies, and the default write policy. |
 | `docs/` | Runtime internals, field vocabulary, Timpos compatibility, v1→v2 migration. |
 | `examples/` | Address examples. |
 | `archive/v1/` | The superseded v1 protocol, kept for reference. |
-| `tests/` `testkit/` | 604 assertions. `./run_tests.sh` is the entry point. |
+| `tests/` `testkit/` | 815 assertions. `./run_tests.sh` is the entry point. |
 
 ## Running the tests
 
