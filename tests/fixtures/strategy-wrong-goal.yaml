@@ -1,0 +1,64 @@
+# A search whose goal disagrees with the contract.
+#
+# The goal says count 2 is success; the contract says 3. Domain must reject the
+# proposal anyway. This exists to prove that a goal and heuristic guide the
+# search without deciding the outcome -- getting them wrong costs attempts, not
+# correctness.
+model: strategy-wrong-goal
+version: 0.1
+
+boundary:
+  max_depth: 2
+  max_attempts: 4
+
+goal:
+  satisfy:
+    eq:
+      - ref: candidate.count
+      - 2
+
+operators:
+  add2:
+    effect:
+      record:
+        count:
+          add:
+            - ref: state.count
+            - 2
+  add3:
+    effect:
+      record:
+        count:
+          add:
+            - ref: state.count
+            - 3
+
+expressions:
+  heuristic:
+    abs:
+      subtract:
+        - 2
+        - ref: candidate.count
+  respond:
+    record:
+      action: propose
+      proposes:
+        ref: search.best
+      because:
+        ref: verdict.finding
+      authority: null
+  exhausted:
+    record:
+      action: escalate
+      to: planner
+      because: search_exhausted
+      authority: product_owner
+  writes:
+    list:
+      - record:
+          when:
+            not:
+              ref: next.converged
+          pressure: exception
+          operation: respond
+          slot: response.action

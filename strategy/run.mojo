@@ -21,9 +21,18 @@ from domain.run import (
     step_with_writes,
     converged,
     snapshot,
+    make_result,
 )
 from address.write import last_id
-from strategy.respond import respond_props, respond, exhausted, escalation
+from strategy.respond import (
+    respond_props,
+    respond,
+    exhausted,
+    escalation,
+    is_search,
+    max_depth,
+)
+from strategy.search import search
 
 
 comptime E_STRATEGY_RUN = "strategy_error"
@@ -67,6 +76,172 @@ fn respond_write_props(
     d[String("output")] = verdict.copy()
     d[String("response")] = response.copy()
     d[String("event")] = Value.record(ev^)
+    return Value.record(d^)
+
+
+fn converge(
+    model: DomainModel,
+    strategy: Value,
+    policy: Value,
+    initial_result: Value,
+) -> Value:
+    """Let Strategy propose Results until Domain accepts one, or the boundary
+    is crossed.
+
+    This is the closed loop, and it is what makes rung 3 different in kind. In
+    every earlier rung a Result came from outside and Strategy at most commented
+    on it. Here Strategy searches from the current actual state, proposes the
+    best candidate it found, and Domain verifies that proposal -- so the runtime
+    can reach a contract on its own.
+
+    The heuristic guides the search; it never decides the outcome. A proposal is
+    still just a Result, and Domain still verifies it. A misleading heuristic
+    costs attempts, not correctness.
+
+    Returns the same shape as `run`, plus `proposals`.
+    """
+    if not model.is_valid():
+        return model.error.copy()
+    if strategy.is_error():
+        return strategy.copy()
+    if not is_search(strategy):
+        return Value.error(
+            String(E_STRATEGY_RUN),
+            String("converge requires a strategy that declares operators and a goal"),
+        )
+
+    var state = initial_state(model)
+    var result = initial_result.copy()
+    var log = List[Value]()
+    var classifications = List[Value]()
+    var responses = List[Value]()
+    var proposals = List[Value]()
+    var prev = String("")
+    var attempts = 0
+    var gave_up = False
+    var round = 0
+
+    while True:
+        if converged(state):
+            break
+
+        var folded = step_with_writes(model, policy, state, result, round, prev.copy())
+        if folded.is_error():
+            return folded^
+
+        var writes = folded.get(String("writes"))
+        for w in range(writes.len()):
+            log.append(writes.at(w))
+        var tail = last_id(writes)
+        if len(tail) > 0:
+            prev = tail^
+
+        var next = folded.get(String("state"))
+        classifications.append(
+            next.get_or(String("classification"), Value.null())
+        )
+        state = next.copy()
+
+        if converged(state):
+            break
+
+        # Search from the state that failed, for something closer to the goal.
+        var verdict = next.get_or(String("verdict"), Value.null())
+        var base = search_base(model, result, verdict, next)
+        var found = search(
+            strategy, base, result.get(String("actual")), max_depth(strategy)
+        )
+        if found.is_error():
+            return found^
+
+        var props = respond_props(
+            model.contract, result, verdict, state, next
+        )
+        var with_search = _with(props, String("search"), found)
+
+        # Nothing reachable within the bound, or too many rejected proposals:
+        # either way this strategy is done and hands off.
+        var over = not found.get(String("found")).truthy() or exhausted(
+            strategy, attempts
+        )
+        var response: Value
+        if over:
+            response = escalation(strategy, with_search)
+        else:
+            response = respond(strategy, with_search)
+        if response.is_error():
+            return response^
+
+        var frame = respond_frame(response, verdict, result)
+        var wprops = respond_write_props(
+            state, next, result, verdict, response, round
+        )
+        var rwrites = emit(
+            strategy.get(String("writes")), model.name, wprops, frame, round, prev.copy()
+        )
+        if rwrites.is_error():
+            return rwrites^
+        if rwrites.len() > 0:
+            for w in range(rwrites.len()):
+                log.append(rwrites.at(w))
+            var rtail = last_id(rwrites)
+            if len(rtail) > 0:
+                prev = rtail^
+            responses.append(response.copy())
+            attempts += 1
+
+        if over:
+            gave_up = True
+            break
+
+        # The proposal becomes the next Result. This is the loop closing.
+        var proposed = response.get_or(String("proposes"), Value.null())
+        if proposed.is_null() or proposed.is_error():
+            gave_up = True
+            break
+        proposals.append(proposed.copy())
+        result = make_result(proposed^, String("strategy"))
+        round += 1
+
+    var trace_value = Value.list(log^)
+    var out = Dict[String, Value]()
+    out[String("state")] = state.copy()
+    out[String("trace")] = trace_value.copy()
+    out[String("classifications")] = Value.list(classifications^)
+    out[String("responses")] = Value.list(responses^)
+    out[String("proposals")] = Value.list(proposals^)
+    out[String("attempts")] = Value.int(attempts)
+    out[String("exhausted")] = Value.bool(gave_up)
+    out[String("converged")] = Value.bool(converged(state))
+    if converged(state):
+        out[String("snapshot")] = snapshot(model, state, trace_value)
+    return Value.record(out^)
+
+
+fn search_base(
+    model: DomainModel, result: Value, verdict: Value, next: Value
+) -> Value:
+    """What a goal, heuristic, or operator effect may reference.
+
+    `expected` is bound directly so a goal reads `ref: expected.count` rather
+    than reaching through the contract -- the shape doc section 4.2 uses.
+    """
+    var d = Dict[String, Value]()
+    d[String("expected")] = model.expected()
+    d[String("contract")] = model.contract.copy()
+    d[String("result")] = result.copy()
+    d[String("verdict")] = verdict.copy()
+    d[String("next")] = next.copy()
+    return Value.record(d^)
+
+
+fn _with(props: Value, var key: String, value: Value) -> Value:
+    var d = Dict[String, Value]()
+    if props.tag == RECORD:
+        for k in props.fields[].keys():
+            var kk = k.copy()
+            d[kk] = props.fields[].get(kk).value()
+    d[key^] = value.copy()
     return Value.record(d^)
 
 

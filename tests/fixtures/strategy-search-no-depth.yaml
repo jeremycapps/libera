@@ -1,0 +1,21 @@
+# Invalid: a search with no depth bound.
+model: strategy-search-no-depth
+goal:
+  satisfy:
+    eq:
+      - ref: candidate.count
+      - 3
+operators:
+  add2:
+    effect:
+      record:
+        count:
+          add:
+            - ref: state.count
+            - 2
+expressions:
+  respond:
+    record:
+      action: a
+  writes:
+    list: []

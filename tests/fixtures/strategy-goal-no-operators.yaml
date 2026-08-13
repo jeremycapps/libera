@@ -1,0 +1,13 @@
+# Invalid: a goal with nothing to reach it.
+model: strategy-goal-no-operators
+goal:
+  satisfy:
+    eq:
+      - ref: candidate.count
+      - 3
+expressions:
+  respond:
+    record:
+      action: a
+  writes:
+    list: []

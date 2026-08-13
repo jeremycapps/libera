@@ -1,0 +1,110 @@
+# Rung 3: search over composed operators.
+#
+# This is doc section 4.2's bootstrap, and it is the first strategy that
+# *produces* a Result rather than responding to one. Rungs 0 through 2 all took
+# a Result from outside and judged or answered it. Here Strategy applies
+# operators to the current state, scores what comes out, and proposes the best
+# candidate for Domain to verify.
+#
+# That reverses the flow, which is why it needs machinery the earlier rungs did
+# not: operators that compose, a goal test, a heuristic, and a frontier.
+#
+# The counting puzzle is a poor motivating example -- it is why Strategy felt
+# abstract in the first place -- but it is an excellent *test*, because the right
+# answer is known and the search space is small enough to check by hand.
+#
+# What is deliberately absent: operator `cost` and the `max_cost` boundary. Depth
+# bounds this search adequately, and cost without a reason to weigh operators
+# differently would be ceremony.
+
+model: strategy-count-search
+version: 0.1
+
+boundary:
+  # How deep to compose operators before giving up. Two is the doc's figure.
+  max_depth: 2
+  # How many proposals Domain may reject before this strategy hands off.
+  max_attempts: 4
+
+# What counts as success. Evaluated per candidate.
+goal:
+  satisfy:
+    eq:
+      - ref: candidate.count
+      - ref: expected.count
+
+# Admissible transformations. Each effect is evaluated against the state it is
+# applied to, and returns the state that results.
+#
+# Operators are applied in sorted id order so that candidate generation is
+# deterministic -- a mapping has no inherent order, and a search whose results
+# depend on hash iteration is not reproducible.
+operators:
+  add2:
+    effect:
+      record:
+        count:
+          add:
+            - ref: state.count
+            - 2
+  add3:
+    effect:
+      record:
+        count:
+          add:
+            - ref: state.count
+            - 3
+
+expressions:
+
+  # Preference estimate: how far this candidate is from the goal. Lower is
+  # better. A heuristic guides exploration; it does not define truth, and
+  # Domain still verifies whatever gets proposed.
+  heuristic:
+    abs:
+      subtract:
+        - ref: expected.count
+        - ref: candidate.count
+
+  # The response *is* the proposal. `proposes` carries the candidate state,
+  # which the driver hands back to Domain as the next Result -- closing the
+  # loop that rungs 1 and 2 left open for a human to close.
+  respond:
+    record:
+      action: propose
+      proposes:
+        ref: search.best
+      path:
+        ref: search.path
+      score:
+        ref: search.score
+      because:
+        ref: verdict.finding
+      authority: null
+
+  # Search found nothing within the boundary. Hand off rather than keep looking.
+  exhausted:
+    record:
+      action: escalate
+      to: planner
+      because: search_exhausted
+      authority: product_owner
+
+  writes:
+    list:
+      - record:
+          when:
+            not:
+              ref: next.converged
+          pressure: exception
+          operation: respond
+          slot: response.action
+      - record:
+          when:
+            not:
+              eq:
+                - ref: response.authority
+                - null
+          pressure: exception
+          operation: respond
+          slot: response.authority

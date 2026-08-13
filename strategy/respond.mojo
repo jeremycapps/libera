@@ -95,9 +95,72 @@ fn load_strategy(path: String) raises -> Value:
             return ir^
         d[String("exhausted")] = ir^
 
-    # The boundary is data, not an expression: a count of answers, not a
-    # judgment about them.
+    # Search machinery (rung 3). Absent for strategies that only respond.
+    if root.has(String("goal")):
+        var goal = root.get(String("goal"))
+        if not goal.has(String("satisfy")):
+            return Value.error(
+                String(E_STRATEGY), String("goal must declare 'satisfy'")
+            )
+        var ir = compile_expression(goal.get(String("satisfy")))
+        if ir.is_error():
+            return ir^
+        d[String("goal")] = ir^
+
+    if root.has(String("operators")):
+        var ops = root.get(String("operators"))
+        if ops.tag != RECORD:
+            return Value.error(
+                String(E_STRATEGY),
+                String("operators must be a mapping of id to operator, got ")
+                + ops.to_string(),
+            )
+        # Sorted so candidate generation is reproducible: a mapping has no
+        # inherent order, and a search whose results depend on hash iteration
+        # is not a search anyone can rely on.
+        var ids = List[String]()
+        for key in ops.fields[].keys():
+            ids.append(key.copy())
+        for a in range(1, len(ids)):
+            var cur = ids[a].copy()
+            var b = a - 1
+            while b >= 0 and ids[b] > cur:
+                ids[b + 1] = ids[b].copy()
+                b -= 1
+            ids[b + 1] = cur^
+
+        var built = List[Value]()
+        for a in range(len(ids)):
+            var id = ids[a].copy()
+            var op = ops.fields[].get(id).value()
+            if not op.has(String("effect")):
+                return Value.error(
+                    String(E_STRATEGY),
+                    String("operator '") + id + String("' declares no effect"),
+                )
+            var od = Dict[String, Value]()
+            od[String("id")] = Value.symbol(id.copy())
+            var eff = compile_expression(op.get(String("effect")))
+            if eff.is_error():
+                return eff^
+            od[String("effect")] = eff^
+            if op.has(String("preconditions")):
+                var pre = compile_expression(op.get(String("preconditions")))
+                if pre.is_error():
+                    return pre^
+                od[String("preconditions")] = pre^
+            built.append(Value.record(od^))
+        d[String("operators")] = Value.list(built^)
+
+    if exprs.has(String("heuristic")):
+        var ir = compile_expression(exprs.get(String("heuristic")))
+        if ir.is_error():
+            return ir^
+        d[String("heuristic")] = ir^
+
+    # The boundary is data, not an expression: counts and depths, not judgments.
     var limit = Value.null()
+    var depth = Value.null()
     if root.has(String("boundary")):
         var boundary = root.get(String("boundary"))
         if boundary.tag != RECORD:
@@ -114,7 +177,37 @@ fn load_strategy(path: String) raises -> Value:
                     String("boundary.max_attempts must be an integer, got ")
                     + limit.to_string(),
                 )
+        if boundary.has(String("max_depth")):
+            depth = boundary.get(String("max_depth"))
+            if depth.tag != INT:
+                return Value.error(
+                    String(E_STRATEGY),
+                    String("boundary.max_depth must be an integer, got ")
+                    + depth.to_string(),
+                )
     d[String("max_attempts")] = limit^
+    d[String("max_depth")] = depth^
+
+    # Operators with nothing to aim at, or a goal with nothing to reach it,
+    # are each half a search.
+    var has_ops = d.__contains__(String("operators"))
+    var has_goal = d.__contains__(String("goal"))
+    if has_ops != has_goal:
+        return Value.error(
+            String(E_STRATEGY),
+            String(
+                "a search needs both 'operators' and 'goal'; this declares"
+                " only one"
+            ),
+        )
+    if has_ops and d[String("max_depth")].tag != INT:
+        return Value.error(
+            String(E_STRATEGY),
+            String(
+                "a search needs 'boundary.max_depth': without a bound it may"
+                " never stop"
+            ),
+        )
 
     # A boundary that can be crossed with nothing to do about it is a trap.
     var has_limit = d[String("max_attempts")].tag == INT
@@ -150,6 +243,21 @@ fn respond_props(
     d[String("state")] = state.copy()
     d[String("next")] = next.copy()
     return Value.record(d^)
+
+
+fn is_search(strategy: Value) -> Bool:
+    """Whether this strategy generates candidates rather than choosing among
+    written-down responses."""
+    if strategy.is_error():
+        return False
+    return strategy.has(String("operators")) and strategy.has(String("goal"))
+
+
+fn max_depth(strategy: Value) -> Int:
+    """The search depth bound. Zero when this strategy does not search."""
+    if not is_search(strategy):
+        return 0
+    return strategy.get(String("max_depth")).i
 
 
 fn has_boundary(strategy: Value) -> Bool:
