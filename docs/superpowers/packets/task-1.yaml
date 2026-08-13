@@ -1,0 +1,49 @@
+# TASK PACKET 1 of 6. Manifest: docs/superpowers/packets/MANIFEST.yaml
+task:
+  id: load-time-surface
+  order: 1
+  objective: >
+    Accept two new optional keys in a strategy document -- expressions.progress
+    and expressions.ineffective -- and refuse a document declaring one without
+    the other.
+  steps_ref:
+    file: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+    lines: 37-257
+  scope:
+    include: [strategy/respond.mojo, tests/test_effectiveness.mojo, tests/run_all.mojo, tests/fixtures/]
+    exclude: [strategy/run.mojo, strategy/search.mojo, models/, docs/]
+  allowed_files:
+    - strategy/respond.mojo
+    - tests/test_effectiveness.mojo
+    - tests/run_all.mojo
+    - tests/fixtures/strategy-progress-without-ineffective.yaml
+    - tests/fixtures/strategy-ineffective-without-progress.yaml
+  acceptance:
+    - "`./run_tests.sh` exits 0"
+    - assertion count is greater than the 815 baseline (expected ~819)
+    - "`strategy/respond.mojo` defines `has_progress_test`"
+    - both named fixture files exist under tests/fixtures/
+    - "`tests/run_all.mojo` imports and calls test_effectiveness"
+    - "loading either fixture returns an error, not a valid strategy"
+    - "`models/strategy-issue-triage.yaml` is unchanged"
+    - one commit exists touching only allowed_files
+  output: &out
+    format: patch_summary
+    must_include: [files_changed, tests_added, assertions_before, assertions_after, commit_sha, unresolved_questions]
+
+subtasks:
+  - role: implementor
+    objective: implement task 1 exactly as its steps_ref range specifies
+    read_only_context: [docs/superpowers/packets/MANIFEST.yaml]
+    steps_ref: {file: docs/superpowers/plans/2026-08-13-response-effectiveness.md, lines: 37-257}
+    output: *out
+
+  - role: validator
+    objective: verify task 1's acceptance against the working tree
+    context:
+      - a strategy declaring only one of the two new keys must fail to load
+      - rung 2's document must not have been edited to make this pass
+    forbidden_paths: [kernel/, modelir/, address/, domain/]
+    output:
+      format: verdict
+      must_include: [verdict, acceptance_results, unexpected_changes, defects]

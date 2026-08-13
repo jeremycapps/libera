@@ -1,0 +1,71 @@
+# TASK PACKET 6 of 6. Manifest: docs/superpowers/packets/MANIFEST.yaml
+#
+# Contains an INVERTED expectation. Read `mutation_check` before doing anything.
+task:
+  id: docs-and-mutation-check
+  order: 6
+  objective: >
+    Prove the new model document is actually read by the tests, then move
+    progress detection out of "deliberately not built" in the runtime docs.
+  steps_ref:
+    file: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+    lines: 1206-1287
+
+  mutation_check:
+    # This runs FIRST, before any documentation edit.
+    what: >
+      Mutate models/strategy-issue-effectiveness.yaml so the progress test
+      compares the finding to itself, run the suite, then revert with
+      `git checkout --`.
+    expected: FAILURE
+    why: >
+      The mutation makes progress always true, so futility can never fire and
+      the run reports exhausted where the tests expect ineffective. A suite that
+      still PASSES means the tests never read the progress test and the
+      assertions are vacuous.
+    on_pass: >
+      STOP. Do not proceed to the documentation steps. Report it as a finding.
+      Mutation testing has caught real bugs in this repository three separate
+      times, including twice in tests written the same session. A surprising
+      result here is signal, not noise.
+    on_fail: proceed -- this is the correct outcome
+
+  scope:
+    include: [docs/runtime.md, docs/superpowers/specs/2026-08-13-response-effectiveness-design.md]
+    exclude: [strategy/, models/, tests/]
+  allowed_files:
+    - docs/runtime.md
+    - docs/superpowers/specs/2026-08-13-response-effectiveness-design.md
+  acceptance:
+    - the mutation check was run and FAILED as required
+    - models/strategy-issue-effectiveness.yaml is reverted and unmodified in git
+    - "`./run_tests.sh` exits 0 at the end"
+    - "docs/runtime.md no longer lists progress detection under 'Deliberately not built'"
+    - docs/runtime.md's rung table includes the new document
+    - the spec's status line reads "implemented"
+    - one commit exists touching only allowed_files
+  output: &out
+    format: patch_summary
+    must_include: [mutation_result, files_changed, final_assertion_count, commit_sha, unresolved_questions]
+
+subtasks:
+  - role: implementor
+    objective: run the mutation check, then update the docs if it fails as expected
+    read_only_context: [docs/superpowers/packets/MANIFEST.yaml]
+    steps_ref: {file: docs/superpowers/plans/2026-08-13-response-effectiveness.md, lines: 1206-1287}
+    note: >
+      The mutation check expects the suite to FAIL. A passing suite is a stop
+      condition, not a success. Quote the actual test output in your report --
+      do not assert a result you did not observe.
+    output: *out
+
+  - role: validator
+    objective: verify the mutation was run, reverted, and the docs match reality
+    context:
+      - the mutation check must have failed; a pass means vacuous tests
+      - the mutated model file must be reverted, not left edited
+      - the docs must no longer claim progress detection is unbuilt
+    forbidden_paths: [kernel/, modelir/, address/, domain/, strategy/, models/, tests/]
+    output:
+      format: verdict
+      must_include: [verdict, mutation_verified, acceptance_results, unexpected_changes, defects]

@@ -1,0 +1,58 @@
+# TASK PACKET 2 of 6. Manifest: docs/superpowers/packets/MANIFEST.yaml
+#
+# NOTE: this task ends with the suite RED, by design. Its tests reference a model
+# document that task 3 creates. Both children are told so explicitly, because a
+# validator that does not know this will correctly flag it and burn the repair
+# budget on a non-problem.
+task:
+  id: progress-evaluation
+  order: 2
+  objective: >
+    Turn the two compiled expressions into callable judgments -- progress_props,
+    progress, ineffective -- applying the same boolean discipline the layer
+    already uses for a candidate's `when`.
+  steps_ref:
+    file: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+    lines: 258-482
+  expected_end_state: RED
+  expected_failure_reason: >
+    models/strategy-issue-effectiveness.yaml does not exist until task 3, so
+    load_strategy returns a parse error and the not_error assertion fails. This
+    is the correct intermediate state. Do not reorder tasks or stub the file to
+    force green.
+  scope:
+    include: [strategy/respond.mojo, tests/test_effectiveness.mojo, tests/fixtures/]
+    exclude: [strategy/run.mojo, models/, docs/]
+  allowed_files:
+    - strategy/respond.mojo
+    - tests/test_effectiveness.mojo
+    - tests/fixtures/strategy-progress-not-boolean.yaml
+  acceptance:
+    - "`strategy/respond.mojo` defines `progress_props`, `progress`, and `ineffective`"
+    - "`progress` returns an error when its expression yields a non-boolean"
+    - tests/fixtures/strategy-progress-not-boolean.yaml exists
+    - "the suite fails, and every failure traces to the missing model document"
+    - no failure is a compile error
+    - one commit exists touching only allowed_files
+  output: &out
+    format: patch_summary
+    must_include: [files_changed, tests_added, failure_reasons, commit_sha, unresolved_questions]
+
+subtasks:
+  - role: implementor
+    objective: implement task 2 exactly as its steps_ref range specifies
+    read_only_context: [docs/superpowers/packets/MANIFEST.yaml]
+    steps_ref: {file: docs/superpowers/plans/2026-08-13-response-effectiveness.md, lines: 258-482}
+    note: the suite is expected to fail when you finish; report that, do not fix it
+    output: *out
+
+  - role: validator
+    objective: verify task 2 landed and that its failure is the expected one
+    context:
+      - a red suite is the correct outcome here
+      - the only acceptable failures are assertions needing the task-3 model document
+      - a compile error is NOT an acceptable failure
+    forbidden_paths: [kernel/, modelir/, address/, domain/]
+    output:
+      format: verdict
+      must_include: [verdict, failure_classification, unexpected_changes, defects]

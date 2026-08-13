@@ -1,0 +1,59 @@
+# TASK PACKET 3 of 6. Manifest: docs/superpowers/packets/MANIFEST.yaml
+task:
+  id: strategy-document
+  order: 3
+  objective: >
+    Add models/strategy-issue-effectiveness.yaml -- a new strategy over the
+    existing issue-completeness contract, declaring a progress test, an
+    ineffective response, and a write policy that records the fact before the
+    decision.
+  steps_ref:
+    file: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+    lines: 483-648
+  scope:
+    include: [models/strategy-issue-effectiveness.yaml]
+    exclude: [strategy/, tests/, docs/, every other file under models/]
+  allowed_files:
+    - models/strategy-issue-effectiveness.yaml
+  constraints:
+    - >
+      Do NOT edit models/strategy-issue-triage.yaml. Rung 2's tests pin
+      escalation arriving from exhaustion at a known attempt count; adding a
+      progress test there makes it arrive earlier from futility and breaks them.
+      Two documents over one contract is the point, not an accident.
+    - >
+      The write list order is load-bearing. `emit` walks it top to bottom, so
+      the detect write must be declared before the ineffective respond write.
+    - >
+      Every candidate must declare `authority: null`. The last write policy reads
+      response.authority, and a missing key is an unresolved-ref error rather
+      than an absent value.
+  acceptance:
+    - "`./run_tests.sh` exits 0"
+    - assertion count is ~828, up from task 1's count
+    - models/strategy-issue-effectiveness.yaml exists and loads without error
+    - "the document declares progress, ineffective, exhausted, candidates, and writes"
+    - "its writes list declares operation `detect` before the `ineffective` respond"
+    - "`git show --stat HEAD` shows models/strategy-issue-triage.yaml NOT modified"
+    - one commit exists touching only allowed_files
+  output: &out
+    format: patch_summary
+    must_include: [files_changed, assertions_before, assertions_after, commit_sha, unresolved_questions]
+
+subtasks:
+  - role: implementor
+    objective: create the strategy document exactly as its steps_ref range specifies
+    read_only_context: [docs/superpowers/packets/MANIFEST.yaml]
+    steps_ref: {file: docs/superpowers/plans/2026-08-13-response-effectiveness.md, lines: 483-648}
+    output: *out
+
+  - role: validator
+    objective: verify the document landed and rung 2 was left alone
+    context:
+      - a new document was added, not an existing one edited
+      - detect must be declared before respond in the writes list
+      - this task turns task 2's expected-red suite green again
+    forbidden_paths: [kernel/, modelir/, address/, domain/]
+    output:
+      format: verdict
+      must_include: [verdict, acceptance_results, unexpected_changes, defects]

@@ -1,0 +1,114 @@
+# GLOBAL MANIFEST -- held by the root agent only.
+#
+# Shared by reference, never pasted into a child. A task or subtask agent that
+# needs something here reads this file; it does not receive it as ambient text.
+#
+# The governing rule: agents inherit contracts, not context. A packet carries an
+# address, not a payload.
+
+project:
+  name: libera
+  repo: /Users/jeremycapps/Dev/libera
+  branch: response-effectiveness        # created by the root agent from main
+  baseline: "815 assertions, 0 failures"
+  test_command: ./run_tests.sh          # ~2s, exits non-zero on any failure
+
+invariants:
+  # Enforced by tests/test_layering.mojo via import direction, not word search.
+  - kernel must not know domain or strategy
+  - domain must not know strategy
+  - address records where a value belongs, never what it means
+  - domain detects deviation in a Result; strategy responds
+  - "strategy may detect, but only about its own conduct"
+  - errors are Values, never exceptions; only filesystem reads may raise
+  - a slot is a kernel Ref -- this is why address/ needed no kernel type
+
+toolchain:
+  language: Mojo 0.26.2.0
+  notes:
+    - "`comptime`, not `alias`"
+    - "`var` for owned args, not `owned`"
+    - "imports fully qualified from `std.`"
+    - "no `mojo test` in 0.26 -- the suite is a plain program"
+  entry_point: tests/run_all.mojo
+  harness: testkit/harness.mojo         # assertions record and continue, never abort
+
+context_refs:
+  runtime: docs/runtime.md
+  spec: docs/superpowers/specs/2026-08-13-response-effectiveness-design.md
+  plan: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+  tests: tests/
+  fixtures: tests/fixtures/
+  models: models/
+  model_example: models/domain-count-level-0.yaml
+  contract_under_test: models/issue-completeness.yaml
+  rung_2_precedent: models/strategy-issue-triage.yaml
+
+forbidden_paths:
+  # A task touching any of these is a stop, not a judgment call.
+  - kernel/
+  - modelir/
+  - address/
+  - domain/
+
+git_policy:
+  branch_from: main
+  allow_commit: true
+  allow_merge: false
+  allow_push: false
+  allow_force_push: false
+
+# Child roles are templates. A task packet fills the slots; it does not restate
+# these. This is what keeps a subtask packet ~60 lines instead of ~250.
+child_roles:
+
+  implementor:
+    receives:
+      - objective
+      - steps_ref            # file + line range; the child reads its own slice
+      - allowed_files
+      - acceptance
+      - output_schema
+    never_receives:
+      - the other five tasks
+      - the design spec or its rationale
+      - the originating conversation
+      - sibling agents' reports
+    mandate: >
+      Read only your steps_ref range. Implement exactly what it specifies; the
+      code there is reviewed and is the contract, not a suggestion. If it does
+      not compile, fix the minimum necessary and report precisely what you
+      changed and why. Run the test command. Commit with the message the range
+      gives. You may read any path under context_refs by reference if you need
+      it; do not ask for the full plan.
+
+  validator:
+    receives:
+      - objective
+      - acceptance            # observable outcomes only
+      - allowed_files
+      - forbidden_paths
+      - output_schema
+    never_receives:
+      - the implementation code
+      - the implementor's report or narrative
+      - the steps_ref range
+    mandate: >
+      Check the tree, not the story. You are told what should now be true, not
+      how it was made true, and that asymmetry is deliberate -- it is what makes
+      your verdict independent. Verify each acceptance item against the working
+      tree and git. Confirm no path outside allowed_files changed
+      (`git show --stat HEAD`) and no forbidden_path was touched. Report
+      CONFIRMED or a specific, actionable defect list. Never a vague concern.
+
+repair_policy:
+  max_rounds: 2
+  on_defect: dispatch a fresh implementor with the defect list, then re-validate
+  on_exhaustion: report the task blocked with the full defect list; do not grind
+
+escalation:
+  # Conditions under which an agent stops rather than deciding for itself.
+  - a forbidden_path appears to require modification
+  - the baseline is not green before work begins
+  - a mutation check passes when it is expected to fail
+  - the repair budget is exhausted

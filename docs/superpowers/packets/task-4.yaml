@@ -1,0 +1,62 @@
+# TASK PACKET 4 of 6. Manifest: docs/superpowers/packets/MANIFEST.yaml
+task:
+  id: the-loop
+  order: 4
+  objective: >
+    Carry the previous verdict and response across folds, consult the progress
+    test before selecting a response, and prefer futility over the attempt
+    boundary when both hold. Add `stopped` to the run result.
+  steps_ref:
+    file: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+    lines: 649-1002
+  scope:
+    include: [strategy/run.mojo, tests/test_effectiveness.mojo]
+    exclude: [strategy/respond.mojo, strategy/search.mojo, models/, docs/]
+  allowed_files:
+    - strategy/run.mojo
+    - tests/test_effectiveness.mojo
+  constraints:
+    - >
+      `exhausted` keeps its current meaning -- this strategy stopped early and
+      handed off. It is NOT repurposed into a three-valued field. `stopped` is
+      additive and names why. Changing `exhausted` breaks assertions in three
+      existing suites.
+    - >
+      prev_verdict and prev_response are assigned together, in the same block,
+      only when a response was actually recorded. previous.verdict must be the
+      verdict previous.response was aimed at -- not merely the latest verdict.
+    - >
+      An error from the progress test aborts the run. It is never read as "no
+      progress"; doing so would escalate for the wrong reason.
+    - "`converge()` gains no effectiveness detection -- only a `False` argument threaded through respond_write_props."
+  acceptance:
+    - "`./run_tests.sh` exits 0"
+    - assertion count is ~843, up from task 3's count
+    - "`run()` returns a `stopped` field whose value is one of: converged, ineffective, exhausted, results_consumed"
+    - "tests/test_strategy.mojo, test_strategy_triage.mojo, and test_search.mojo all still pass"
+    - "a run whose deviation stands still reports stopped=ineffective before the attempt budget is spent"
+    - one commit exists touching only allowed_files
+  output: &out
+    format: patch_summary
+    must_include: [files_changed, tests_added, assertions_before, assertions_after, commit_sha, unresolved_questions]
+
+subtasks:
+  - role: implementor
+    objective: implement task 4 exactly as its steps_ref range specifies
+    read_only_context: [docs/superpowers/packets/MANIFEST.yaml]
+    steps_ref: {file: docs/superpowers/plans/2026-08-13-response-effectiveness.md, lines: 649-1002}
+    note: >
+      If the three pre-existing strategy suites start failing, you changed the
+      meaning of `exhausted` rather than preserving it. Revisit before reporting.
+    output: *out
+
+  - role: validator
+    objective: verify the loop change landed without disturbing existing behaviour
+    context:
+      - three pre-existing strategy suites must still pass untouched
+      - futility must outrank the boundary when both conditions hold
+      - the run result gained a field rather than changing one
+    forbidden_paths: [kernel/, modelir/, address/, domain/]
+    output:
+      format: verdict
+      must_include: [verdict, acceptance_results, regression_check, unexpected_changes, defects]

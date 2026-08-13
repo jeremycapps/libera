@@ -1,0 +1,64 @@
+# TASK PACKET 5 of 6. Manifest: docs/superpowers/packets/MANIFEST.yaml
+#
+# Assertions only. This task adds no production code -- if it fails, the fix
+# belongs in task 3's document or task 4's loop, not here. An implementor that
+# "fixes" a failure by weakening an assertion has inverted the task.
+task:
+  id: log-ordering-and-precedence
+  order: 5
+  objective: >
+    Pin two claims no earlier task establishes: that a futile fold writes the
+    fact (exception/detect) before the decision (exception/respond) with the prev
+    chain unbroken, and that futility outranks exhaustion when both hold.
+  steps_ref:
+    file: docs/superpowers/plans/2026-08-13-response-effectiveness.md
+    lines: 1003-1205
+  scope:
+    include: [tests/test_effectiveness.mojo, tests/fixtures/strategy-precedence.yaml]
+    exclude: [strategy/, models/, docs/]
+  allowed_files:
+    - tests/test_effectiveness.mojo
+    - tests/fixtures/strategy-precedence.yaml
+  constraints:
+    - >
+      No production file may change in this task. If an assertion fails, report
+      it as a defect in task 3 or task 4 -- do not weaken the assertion, and do
+      not edit strategy/ or models/ to accommodate it.
+    - >
+      The precedence fixture uses max_attempts:1 so both conclusions are
+      available on the same fold. The two escalations differ in `authority`,
+      which is how the test tells which one fired.
+  acceptance:
+    - "`./run_tests.sh` exits 0"
+    - assertion count is greater than task 4's count
+    - tests/fixtures/strategy-precedence.yaml exists
+    - "`git show --stat HEAD` shows no file under strategy/ or models/ changed"
+    - "a futile fold's writes appear in order: detect(response.effective), respond(response.action), respond(response.authority)"
+    - the prev chain is intact across both layers' writes
+    - a fold whose deviation moved emits no detect write from the strategy
+    - one commit exists touching only allowed_files
+  output: &out
+    format: patch_summary
+    must_include: [files_changed, tests_added, assertions_before, assertions_after, commit_sha, unresolved_questions]
+
+subtasks:
+  - role: implementor
+    objective: add the assertions in task 5's steps_ref range
+    read_only_context: [docs/superpowers/packets/MANIFEST.yaml]
+    steps_ref: {file: docs/superpowers/plans/2026-08-13-response-effectiveness.md, lines: 1003-1205}
+    note: >
+      You may not change production code. A failing ordering assertion means the
+      write list in models/strategy-issue-effectiveness.yaml is misordered; a
+      failing chain assertion means the prev tail is read too early in
+      strategy/run.mojo. Report either as a defect rather than fixing it here.
+    output: *out
+
+  - role: validator
+    objective: verify the assertions landed and nothing outside tests/ changed
+    context:
+      - this task is assertions only
+      - any change under strategy/ or models/ is a defect regardless of test results
+    forbidden_paths: [kernel/, modelir/, address/, domain/, strategy/, models/]
+    output:
+      format: verdict
+      must_include: [verdict, acceptance_results, unexpected_changes, defects]
