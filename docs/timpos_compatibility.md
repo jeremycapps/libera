@@ -1,13 +1,13 @@
 # Timpos Compatibility
 
-Libera and Timpos answer different questions.
+Address and Timpos answer different questions.
 
 ```text
-Libera: where does state land inside the program?
-Timpos: when and where was that state observed?
+Address: where does state land inside the program?
+Timpos:  when and where was that state observed?
 ```
 
-## Libera address
+## The address
 
 ```text
 {pressure}/{operation}/{slot}
@@ -21,7 +21,7 @@ movement/change/result.actual
 
 ## Moment shape
 
-A Moment records a value at a Libera address using a Timpo.
+A Moment records a value at an address using a Timpo.
 
 ```yaml
 moment:
@@ -35,11 +35,11 @@ moment:
 
 ## Boundary
 
-Libera does not record observations.
+Address does not record observations.
 
 Timpos does not define program vocabulary.
 
-Corus may replay Timpos Moments over Libera addresses to derive coordinated state.
+Corus may replay Timpos Moments over addresses to derive coordinated state.
 
 ## Relationship to the runtime's Write
 
@@ -55,7 +55,7 @@ write:
 ```
 
 A Write is **a Moment minus the timestamp**. The `prev` chain is structure; the timestamp
-is observation, and observation is Timpos's concern, not Libera's. The runtime therefore
+is observation, and observation is Timpos's concern, not Address's. The runtime therefore
 stops at the chain and leaves the seam clean — a Timpo can be attached to a Write without
 either side having to know about the other.
 
@@ -66,7 +66,7 @@ projected onto it. See `docs/superpowers/specs/2026-08-12-libera-convergence-des
 ## Keeper
 
 ```text
-Libera defines the address.
+Address defines where motion happened.
 Domain assigns meaning to addressed motion.
 Timpos records the observed change.
 Corus replays changes into coordination.

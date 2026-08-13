@@ -1,15 +1,15 @@
-# Libera Protocol
+# The Address Protocol
 
-Libera v2 is YAML-first.
+Address is the layer of Libera that records **where a value belongs and what transition
+occurred**. It is YAML-first, and `libera.schema.yaml` in this directory is canonical.
 
-Libera defines replayable program state addresses.
-
-`libera.schema.yaml` in this directory is the canonical specification. Everything else in
-this repository — including the Mojo runtime — implements or references it.
+Address is one layer of a larger platform. Libera itself composes, shares, and deploys
+executable semantic models; this protocol is the part that gives their state motion a
+stable, replayable location.
 
 ## Program
 
-A Program is an authored workflow address space.
+A Program is an authored address space.
 
 A program defines the valid addresses that operational state can occupy. In plain
 language, a program may also be called a workstream when that improves readability for
@@ -36,7 +36,8 @@ movement/change/facia_surface_model.status = updated
 ```
 
 `program` is a required field on a path, but is not part of the rendered path format — it
-is carried alongside, as a sibling. A path is a record with identity, not a string:
+is carried alongside, as a sibling. A path is a record with identity, not a string, and
+identity is what makes it replayable:
 
 ```yaml
 - id: path.facia_surface_model_status
@@ -61,26 +62,56 @@ exception   detect   Deviation is identified.
             respond  Deviation is acted on.
 ```
 
-## Boundary
+## Filesystem rendering
 
-Libera does not define domain types.
-Libera does not define execution or meaning.
-Libera does not record observations.
-Libera does not decide truth.
-Libera does not render use surfaces.
+A runtime may mount an address as a file:
 
-These boundaries are claims about **this protocol**, not about the repository. The
-repository also contains a reference runtime that does evaluate and does assign meaning;
-it does so in layers above this one, and never inside it.
+```text
+programs/protocol_design/movement/change/facia_surface_model/status.yaml
+```
+
+Address defines the grammar. A host decides whether to mount it.
+
+## What this protocol does not do
+
+```text
+Address does not define domain types.
+Address does not define execution or meaning.
+Address does not record observations.
+Address does not decide truth.
+Address does not coordinate objectives.
+Address does not render use surfaces.
+
+Address validates program addresses and local values.
+```
+
+**These are claims about this protocol, not about Libera.** Libera is a platform for
+composing and deploying executable semantic models — it very much defines execution and
+meaning. It does so in layers above this one, never inside it:
+
+```text
+kernel     evaluates expressions, knows nothing above it
+address    records where a value belongs        <- this protocol
+domain     supplies coordination semantics
+strategy   supplies search and response
+```
+
+Keeping those claims true of Address is what lets Domain be swapped, extended, or replaced
+without touching the address grammar. A layering test enforces it.
 
 ## Keeper
 
 ```text
-Libera defines the program address.
-Program files define allowed local values.
-Domain assigns meaning to addressed motion.
+Address defines where motion happened.
+
+Pressure names the situation.
+Operation names the motion.
+Slot names the addressable state.
+
+Domain names what the motion means.
 Timpos records observed changes.
-Corus replays changes into coordination.
+Corus evaluates objective satisfaction.
+Facia routes active state into use.
 ```
 
 ## Predecessor
