@@ -31,6 +31,10 @@ from strategy.respond import (
     escalation,
     is_search,
     max_depth,
+    has_progress_test,
+    progress,
+    progress_props,
+    ineffective,
 )
 from strategy.search import search
 
@@ -58,12 +62,14 @@ fn respond_write_props(
     verdict: Value,
     response: Value,
     step: Int,
+    futile: Bool,
 ) -> Value:
     """Props for a strategy's write policy.
 
     Domain's shape plus `response`, so a policy can gate on what the strategy
     actually decided -- which is how an escalation's `authority` write knows to
-    fire and an ordinary retry's does not.
+    fire and an ordinary retry's does not -- plus `ineffective`, which is how the
+    detect/respond pair knows to fire.
     """
     var ev = Dict[String, Value]()
     ev[String("is_first")] = Value.bool(step == 0)
@@ -75,6 +81,7 @@ fn respond_write_props(
     d[String("result")] = result.copy()
     d[String("output")] = verdict.copy()
     d[String("response")] = response.copy()
+    d[String("ineffective")] = Value.bool(futile)
     d[String("event")] = Value.record(ev^)
     return Value.record(d^)
 
@@ -174,7 +181,7 @@ fn converge(
 
         var frame = respond_frame(response, verdict, result)
         var wprops = respond_write_props(
-            state, next, result, verdict, response, round
+            state, next, result, verdict, response, round, False
         )
         var rwrites = emit(
             strategy.get(String("writes")), model.name, wprops, frame, round, prev.copy()
@@ -268,6 +275,10 @@ fn run(
     var prev = String("")
     var attempts = 0
     var gave_up = False
+    var prev_verdict = Value.null()
+    var prev_response = Value.null()
+    var have_previous = False
+    var stopped = String("results_consumed")
 
     for k in range(len(results)):
         if converged(state):
@@ -297,12 +308,39 @@ fn run(
             model.contract, results[k], verdict, state, next
         )
 
+        # Did the last response accomplish anything? Asked only once there has
+        # been a response to judge, which is why nothing here reaches through a
+        # null and why this needs no presence operator.
+        var futile = False
+        if has_progress_test(strategy) and have_previous and not converged(next):
+            var moved = progress(
+                strategy,
+                progress_props(verdict, prev_verdict, prev_response),
+            )
+            # A broken predicate is a defect in the model. Reading it as "no
+            # progress" would escalate for the wrong reason and hide the defect
+            # behind plausible behaviour.
+            if moved.is_error():
+                return moved^
+            futile = not moved.b
+
         # The boundary is consulted before the response, not after: once the
         # strategy has answered as many times as it is allowed to, it stops
         # choosing among candidates and escalates instead.
         var over_boundary = not converged(next) and exhausted(strategy, attempts)
+
+        # Futility takes precedence. If both hold, "your response did not work"
+        # is the more specific and more actionable conclusion, and escalating on
+        # it immediately is what the boundary alone cannot express.
         var response: Value
-        if over_boundary:
+        if futile:
+            # `ineffective`'s expression reads `previous.response.action` --
+            # `props` (respond_props) carries no `previous`, but the pair this
+            # loop just judged progress against is exactly what it needs.
+            response = ineffective(
+                strategy, progress_props(verdict, prev_verdict, prev_response)
+            )
+        elif over_boundary:
             response = escalation(strategy, props)
         else:
             response = respond(strategy, props)
@@ -311,7 +349,7 @@ fn run(
 
         var frame = respond_frame(response, verdict, results[k])
         var wprops = respond_write_props(
-            state, next, results[k], verdict, response, k
+            state, next, results[k], verdict, response, k, futile
         )
         var rwrites = emit(
             strategy.get(String("writes")),
@@ -330,16 +368,27 @@ fn run(
             var rtail = last_id(rwrites)
             if len(rtail) > 0:
                 prev = rtail^
-            responses.append(response^)
+            responses.append(response.copy())
             attempts += 1
+            prev_verdict = verdict.copy()
+            prev_response = response.copy()
+            have_previous = True
 
         state = next^
 
         # Handing off ends this strategy's involvement. Continuing to verify
         # after escalating would be answering a question already given away.
+        if futile:
+            gave_up = True
+            stopped = String("ineffective")
+            break
         if over_boundary:
             gave_up = True
+            stopped = String("exhausted")
             break
+
+    if converged(state):
+        stopped = String("converged")
 
     var trace_value = Value.list(log^)
     var out = Dict[String, Value]()
@@ -349,6 +398,7 @@ fn run(
     out[String("responses")] = Value.list(responses^)
     out[String("attempts")] = Value.int(attempts)
     out[String("exhausted")] = Value.bool(gave_up)
+    out[String("stopped")] = Value.symbol(stopped^)
     out[String("converged")] = Value.bool(converged(state))
     if converged(state):
         out[String("snapshot")] = snapshot(model, state, trace_value)
