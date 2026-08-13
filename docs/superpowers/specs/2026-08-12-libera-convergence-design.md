@@ -261,6 +261,25 @@ expression; derive it from the emitted pressure/operation. `movement/advance` is
 Doc §3.1's CurrentState shape is preserved, existing tests stay meaningful, and there is
 one source of truth. The §3.3 model loses an entire `if` block.
 
+## §5a `trace` is a projection — settles doc §8 #5
+
+A Snapshot cannot be stored whole inside the write log. The `boundary/exit` write is
+itself a member of the log, so a `trace` inside its value would contain the write that
+contains the trace, without end.
+
+That forces doc §8 open decision #5 — *how snapshots are persisted and whether replay is
+event-sourced* — and it is settled here toward event-sourced:
+
+**A snapshot's position in the log is its trace.** The exit write stores only the settled
+part, `{contract, final_result, final_verdict}` (`domain.run.settled`). It has an `id` and
+a `prev`, and everything before it is by construction exactly what led to it.
+
+`trace` is attached only when a snapshot *leaves* the log — as `run`'s return value, where
+there is no surrounding log to define it (`domain.run.snapshot` = `settled` + projection).
+
+The rejected alternative was passing an empty list, which is worse than omission: it is a
+durable record actively asserting that no writes occurred. A test pins the absence.
+
 ## §5 Trace becomes a write log
 
 ```
@@ -366,3 +385,4 @@ Strategy remains unbuilt throughout.
 | 7 | Trace carries `prev` but no timestamps; observation stays Timpos's |
 | 8 | Repo naming and publishing — OPEN, no remote changes without instruction |
 | 9 | Layer named `address/`; types `Address` and `Write` (not `motion`/`Motion`) |
+| 10 | `trace` is a projection, not a stored field; a snapshot's log position is its trace (settles doc §8 #5) |

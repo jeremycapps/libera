@@ -622,6 +622,54 @@ fn _addressed_writes(mut t: TestSuite, model: DomainModel) raises:
         String("planning has leaked into Domain"),
     )
 
+    # The exit write stores a settled snapshot with NO trace field.
+    #
+    # It cannot have one: this write is a member of the log, so a trace inside it
+    # would contain the write that contains the trace, without end. Its position
+    # in the log is its trace. The bug this pins is the tempting one -- passing an
+    # empty list instead, which is a record that actively claims nothing happened.
+    var exit_write = trace.at(trace.len() - 1)
+    t.eq_str(
+        String("the last write is the exit"),
+        render(exit_write.get(String("address"))),
+        String("boundary/exit/snapshot"),
+    )
+    var exit_value = exit_write.get(String("value"))
+    t.check(
+        String("the stored snapshot carries no trace field"),
+        not exit_value.has(String("trace")),
+        String("a snapshot inside the log must not claim a trace: ")
+        + exit_value.to_string(),
+    )
+    t.eq_value(
+        String("the stored snapshot is settled: contract"),
+        exit_value.get(String("contract")),
+        model.contract,
+    )
+    t.eq_value(
+        String("the stored snapshot is settled: final_result"),
+        exit_value.get(String("final_result")),
+        _count_result(3),
+    )
+    t.eq_value(
+        String("the stored snapshot is settled: final_verdict conforms"),
+        exit_value.get(String("final_verdict")).get(String("conforms")),
+        Value.bool(True),
+    )
+
+    # By contrast, the snapshot handed OUT of the log does carry the trace --
+    # there is no surrounding log there to define it.
+    t.check(
+        String("the returned snapshot does carry a trace"),
+        outcome.get(String("snapshot")).has(String("trace")),
+        String("a snapshot leaving the log needs its trace projected on"),
+    )
+    t.eq_int(
+        String("and that trace holds every write"),
+        outcome.get(String("snapshot")).get(String("trace")).len(),
+        6,
+    )
+
     # Classification is derived, and still agrees with what the doc's traces say.
     t.eq_value(
         String("first fold classifies as exception"),

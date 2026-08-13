@@ -174,9 +174,11 @@ fn step_with_writes(
     # The first fold is the one that has not yet recorded a result.
     var is_first = state.get_or(String("result"), Value.null()).is_null()
 
+    # `settled`, not `snapshot`: this value is about to be stored as the value of
+    # a write inside the log, so it must not claim a trace it cannot hold.
     var snap = Value.null()
     if converged(next):
-        snap = snapshot(model, next, Value.list(List[Value]()))
+        snap = settled(model, next)
         if snap.is_error():
             return snap^
 
@@ -228,12 +230,21 @@ fn converged(state: Value) -> Bool:
     return state.get(String("converged")).truthy()
 
 
-fn snapshot(model: DomainModel, state: Value, trace: Value) -> Value:
-    """A Snapshot: `{ contract, final_result, final_verdict, trace }` (doc 3.1).
+fn settled(model: DomainModel, state: Value) -> Value:
+    """The part of a Snapshot that does not depend on the log:
+    `{ contract, final_result, final_verdict }`.
 
-    Doc 3.1 calls this *the settled durable output when convergence is
-    reached*, so emitting one from an unconverged state is an error rather
-    than a half-filled record.
+    This is what a Snapshot is when it lives *inside* the write log. A snapshot
+    recorded as the value of a `boundary/exit` write cannot carry a trace: that
+    write is itself a member of the log, so embedding the log inside it would
+    recur without end. Its position in the log is its trace -- it has an `id`
+    and a `prev`, and everything before it is by construction exactly what led
+    to it. Restating that inside the value is redundant where it is possible
+    and false where it is not.
+
+    Doc 3.1 calls the Snapshot *the settled durable output when convergence is
+    reached*, so building one from an unconverged state is an error rather than
+    a half-filled record.
     """
     if not converged(state):
         return Value.error(
@@ -244,6 +255,23 @@ fn snapshot(model: DomainModel, state: Value, trace: Value) -> Value:
     d[String("contract")] = model.contract.copy()
     d[String("final_result")] = state.get_or(String("result"), Value.null())
     d[String("final_verdict")] = state.get_or(String("verdict"), Value.null())
+    return Value.record(d^)
+
+
+fn snapshot(model: DomainModel, state: Value, trace: Value) -> Value:
+    """A Snapshot: `{ contract, final_result, final_verdict, trace }` (doc 3.1).
+
+    `trace` is a **projection**, attached only when a snapshot leaves the log --
+    as `run`'s return value, where there is no surrounding log to define it. For
+    the snapshot stored *in* the log, see `settled`.
+    """
+    var base = settled(model, state)
+    if base.is_error():
+        return base^
+    var d = Dict[String, Value]()
+    for k in base.fields[].keys():
+        var kk = k.copy()
+        d[kk] = base.fields[].get(kk).value()
     d[String("trace")] = trace.copy()
     return Value.record(d^)
 
