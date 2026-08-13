@@ -1,7 +1,7 @@
 # The Mojo reference runtime
 
 How this repository's implementation of the Libera protocol works. The protocol itself is
-`protocol/libera.schema.yaml`; this document is about the code that implements it.
+`protocol/address.schema.yaml`; this document is about the code that implements it.
 
 ```
 kernel/value.mojo     Value: the universal representable object
@@ -191,7 +191,7 @@ K0, D0, and D1 are done.
 | `test_write.mojo` | Write records, id derivation, and `prev` chain integrity including orphan heads |
 | `test_policy_doc.mojo` | The default write policy parses, compiles, and never mentions `respond` |
 | `test_emit.mojo` | Policy evaluation, `when` filtering, slot resolution, duplicate-id rejection |
-| `test_layering.mojo` | Import-direction layering, and conformance against `protocol/libera.schema.yaml` |
+| `test_layering.mojo` | Import-direction layering, and conformance against `protocol/address.schema.yaml` |
 
 Two things were verified beyond the suite passing:
 
@@ -199,6 +199,6 @@ Two things were verified beyond the suite passing:
   assertion kinds report correctly and the process exits 1.
 - **The tests are coupled to the data.** Mutations of
   `models/domain-count-level-0.yaml`, `models/writes-default.yaml`, and
-  `protocol/libera.schema.yaml` each produce failures rather than passing vacuously.
+  `protocol/address.schema.yaml` each produce failures rather than passing vacuously.
   The conformance test reads the canonical schema directly, so the runtime cannot
   drift from the protocol it ships.

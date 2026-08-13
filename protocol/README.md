@@ -1,7 +1,7 @@
 # The Address Protocol
 
 Address is the layer of Libera that records **where a value belongs and what transition
-occurred**. It is YAML-first, and `libera.schema.yaml` in this directory is canonical.
+occurred**. It is YAML-first, and `address.schema.yaml` in this directory is canonical.
 
 Address is one layer of a larger platform. Libera itself composes, shares, and deploys
 executable semantic models; this protocol is the part that gives their state motion a

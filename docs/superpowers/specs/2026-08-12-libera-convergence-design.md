@@ -21,7 +21,7 @@ converge into one runtime.
 
 ## Assessment of the finding
 
-Verified correct against `protocol/libera.schema.yaml`:
+Verified correct against `protocol/address.schema.yaml`:
 
 - the `{pressure}/{operation}/{slot}` path format
 - the six pairs: boundary enter/exit, movement advance/change, exception detect/respond
@@ -294,7 +294,7 @@ surface rendering, even though the repo boundary that enforced that is gone.
 
 ## §6 Bill of materials: v1 versus v2
 
-**From v2** (`protocol/libera.schema.yaml`): path format, the six pairs, required
+**From v2** (`protocol/address.schema.yaml`): path format, the six pairs, required
 `program`, path-as-record-with-`id`, the scope boundaries list.
 
 **From v1** (`fields.md`, `logic.md`) — dropped by v2 without replacement: the field
@@ -332,7 +332,7 @@ unrelated histories are joined with `--allow-unrelated-histories`, so the spec's
 and the runtime's 18 both survive. v1 is preserved twice over: tagged (`v1-final`,
 `spec-only`) and archived under `archive/v1/`.
 
-The conformance test now reads `protocol/libera.schema.yaml` directly rather than a
+The conformance test now reads `protocol/address.schema.yaml` directly rather than a
 vendored copy, so spec drift is structurally impossible rather than merely tested. This
 closes §9 steps 7-8 and unblocks §6.
 
@@ -346,7 +346,7 @@ closes §9 steps 7-8 and unblocks §6.
   `address/` files, failing if any mentions "contract", "verdict", or "conforms".
   Replaces the surrendered repo boundary.
 - **Conformance test** — `Address` validates against the published
-  `protocol/libera.schema.yaml`, so the runtime cannot drift from the spec it ships.
+  `protocol/address.schema.yaml`, so the runtime cannot drift from the spec it ships.
 - **Level 0 discipline** — assert no `exception/respond` is ever emitted.
 - **Mutation testing** on `writes-default.yaml`, as was done for the domain model, to
   prove the write tests are not vacuous.
@@ -367,7 +367,7 @@ closes §9 steps 7-8 and unblocks §6.
 
 **Implementation scope.** The first plan covers steps 1–6 only. Steps 7–8 import content
 from the other repository and are therefore blocked on §7; taking them earlier would
-presume that decision. The conformance test in §8 vendors `libera.schema.yaml` as a test
+presume that decision. The conformance test in §8 vendors `address.schema.yaml` as a test
 fixture rather than as `protocol/`, which gets the drift protection without committing to
 the merge.
 

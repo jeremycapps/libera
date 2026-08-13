@@ -18,7 +18,7 @@ comptime E_ADDRESS = "address_error"
 
 
 fn is_pressure(p: String) -> Bool:
-    """The three pressures from `protocol/libera.schema.yaml`."""
+    """The three pressures from `protocol/address.schema.yaml`."""
     return p == "boundary" or p == "movement" or p == "exception"
 
 

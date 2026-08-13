@@ -70,7 +70,7 @@ exception   detect   deviation is identified
             respond  deviation is acted on
 ```
 
-`protocol/libera.schema.yaml` is the canonical schema, and the conformance test reads it
+`protocol/address.schema.yaml` is the canonical schema, and the conformance test reads it
 directly — so the runtime cannot drift from the protocol it ships.
 
 The protocol deliberately defines no domain types. It does not name `request`,
@@ -82,7 +82,7 @@ Domain bindings. An earlier version did name twelve such types, and removing the
 
 | | |
 |---|---|
-| `protocol/` | The Address protocol. `libera.schema.yaml` is canonical. |
+| `protocol/` | The Address protocol. `address.schema.yaml` is canonical. |
 | `kernel/` `modelir/` `address/` `domain/` | The deterministic runtime. |
 | `models/` | Model documents: a Domain contract, and the default write policy. |
 | `docs/` | Runtime internals, field vocabulary, Timpos compatibility, v1→v2 migration. |

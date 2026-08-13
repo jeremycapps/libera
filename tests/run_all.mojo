@@ -23,7 +23,7 @@ import tests.test_layering as test_layering
 
 fn main() raises:
     print("=" * 62)
-    print("Libera kernel + domain test suite")
+    print("Libera runtime test suite")
     print("=" * 62)
 
     var t = TestSuite()

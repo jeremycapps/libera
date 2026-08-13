@@ -1,10 +1,11 @@
 """Two guards on the architecture itself.
 
-Layering: merging the runtimes gave up Libera's repo-level enforcement of its scope
-boundaries. This replaces it -- a module may not import from a layer above it.
+Layering: consolidating the protocol and the runtime into one repository gave up the
+repo-level enforcement of Address's scope boundaries. This replaces it -- a module may
+not import from a layer above it.
 
-Conformance: the address vocabulary is checked against the published v2 schema, so the
-runtime cannot drift from the spec it implements.
+Conformance: the address vocabulary is checked against `protocol/address.schema.yaml`
+itself, not a copy of it, so the runtime cannot drift from the protocol it ships.
 """
 
 from std.collections import List, Dict
@@ -16,7 +17,7 @@ from address.grammar import is_pressure, is_operation, valid_pair
 from testkit.harness import TestSuite
 
 
-comptime SCHEMA_PATH = "protocol/libera.schema.yaml"
+comptime SCHEMA_PATH = "protocol/address.schema.yaml"
 
 # Layer ordering, lowest first. A module in one layer may not import from any
 # layer that comes after it in this list -- enumerated from the package
@@ -126,9 +127,9 @@ fn _conformance(mut t: TestSuite) raises:
     t.section(String("conformance / vocabulary matches the published v2 schema"))
 
     var schema = parse_yaml_file(String(SCHEMA_PATH))
-    t.not_error(String("schema fixture parses"), schema)
+    t.not_error(String("canonical schema parses"), schema)
     t.eq_value(
-        String("fixture is schema version 2"),
+        String("canonical schema is version 2"),
         schema.get(String("version")),
         Value.int(2),
     )
@@ -214,7 +215,7 @@ fn _conformance(mut t: TestSuite) raises:
     t.eq_int(String("five scope boundaries"), boundaries.len(), 5)
     var boundary_text = boundaries.to_string()
     t.check(
-        String("Libera does not define execution or meaning"),
+        String("Address does not define execution or meaning"),
         boundary_text.find(String("execution or meaning")) >= 0,
         String("the boundary this whole layering rests on is missing"),
     )
