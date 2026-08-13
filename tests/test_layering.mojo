@@ -27,6 +27,7 @@ comptime LAYER_ORDER_0 = "kernel"
 comptime LAYER_ORDER_1 = "modelir"
 comptime LAYER_ORDER_2 = "address"
 comptime LAYER_ORDER_3 = "domain"
+comptime LAYER_ORDER_4 = "strategy"
 
 
 fn _read(path: String) raises -> String:
@@ -69,12 +70,13 @@ fn _layering(mut t: TestSuite) raises:
     layers.append(String(LAYER_ORDER_1))
     layers.append(String(LAYER_ORDER_2))
     layers.append(String(LAYER_ORDER_3))
+    layers.append(String(LAYER_ORDER_4))
 
-    # Only the layers that own real package directories are enumerated and
-    # checked; `domain` has nothing above it in this ordering, so it never
-    # needs an "above" check, but it still participates as an upper bound
-    # for the others.
-    var checked_layers = 3
+    # `strategy` is the topmost layer, so it has nothing above it to be checked
+    # against -- it still participates as an upper bound for the rest. Every
+    # other package is enumerated and checked, which is what stops Domain from
+    # reaching up into Strategy: Strategy drives Domain, never the reverse.
+    var checked_layers = 4
 
     for i in range(checked_layers):
         var package = layers[i]

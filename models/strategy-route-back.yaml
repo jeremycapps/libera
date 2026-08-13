@@ -1,0 +1,49 @@
+# The smallest possible strategy: one response, always the same.
+#
+# No operators. No candidates. No heuristic. No search. When Domain detects a
+# deviation, this says the one thing it knows how to say: send it back to
+# whoever supplied it, and name what was missing.
+#
+# That is still a strategy. Doc section 4 draws the line at *deciding what to do
+# about a deviation*, not at searching -- "Domain decides whether a result
+# conforms. Strategy decides what candidate result to try next." A fixed
+# response is the degenerate case of that decision, with one option.
+#
+# It is also the first thing in this runtime that writes to `exception/respond`.
+# Domain may only detect; responding is this layer's job, and the layering test
+# enforces the direction by forbidding domain/ from importing strategy/.
+#
+# What this deliberately lacks: a boundary. Doc section 5 warns that a fixed
+# transform "can loop, overshoot, or fail without knowing why unless extra rules
+# exist" -- and nothing here stops a routed-back issue from coming back
+# unchanged forever. The caller supplies a finite list of results, so it
+# terminates, but that is the caller's discipline rather than the strategy's.
+# Giving Strategy its own stop conditions is the next rung, not this one.
+
+model: strategy-route-back
+version: 0.1
+
+expressions:
+
+  # Response = Evaluate(respond, { contract, result, verdict, state, next })
+  respond:
+    record:
+      action: route_back
+      to:
+        ref: result.source
+      because:
+        ref: verdict.finding
+
+  # One addressed write, gated on the deviation still standing. The `when` is
+  # what makes this declarative rather than a hardcoded branch in the driver:
+  # a strategy that wanted to respond on every fold, or never, would change
+  # this line and nothing else.
+  writes:
+    list:
+      - record:
+          when:
+            not:
+              ref: next.converged
+          pressure: exception
+          operation: respond
+          slot: response.action
