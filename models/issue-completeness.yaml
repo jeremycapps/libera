@@ -1,0 +1,103 @@
+# A customer issue must be complete before it can move.
+#
+# This is a Level 0 Domain model over a real contract shape rather than a
+# counting puzzle: several required fields, a Result that may satisfy some and
+# not others, and a finding that names *what* is missing instead of only
+# reporting false.
+#
+# Nothing here searches or repairs. A Result is supplied from outside, Domain
+# verifies it, and a deviation is reported. Deciding what to do about the
+# deviation -- route it back, ask for logs, escalate -- is a response, and
+# responses belong to Strategy. That is why nothing in this file writes to
+# `exception/respond`.
+#
+# Absence is explicit. A Result states a value or `null` for every declared
+# field; it does not omit keys. Omission would make `ref: actual.root_cause`
+# an unresolved-ref error rather than a false presence check, and an error is
+# not the same claim as "this was left blank". Requiring the null also forces
+# the supplier to say they looked.
+
+model: issue-completeness
+version: 0.1
+
+contract:
+  expected:
+    root_cause: required
+    owner: required
+    resolution_path: required
+
+expressions:
+
+  # Verdict = Evaluate(verify, { expected, actual })
+  verify:
+    record:
+      type: Verdict
+
+      expected:
+        ref: expected
+      actual:
+        ref: actual
+
+      # Every declared field must carry a value.
+      #
+      # The presence test is spelled out per field because the expression
+      # language has no `has` operator and no way to bind a helper into a
+      # verifier's props. Both are worth adding later; until then, explicit
+      # repetition is better than a clever encoding nobody can read.
+      conforms:
+        and:
+          - not:
+              eq:
+                - ref: actual.root_cause
+                - null
+          - not:
+              eq:
+                - ref: actual.owner
+                - null
+          - not:
+              eq:
+                - ref: actual.resolution_path
+                - null
+
+      # Name the first gap rather than reporting a bare false. This is the
+      # thing a counting model cannot demonstrate: a finding that tells the
+      # supplier what to fix.
+      finding:
+        if:
+          condition:
+            not:
+              eq:
+                - ref: actual.root_cause
+                - null
+          then:
+            if:
+              condition:
+                not:
+                  eq:
+                    - ref: actual.owner
+                    - null
+              then:
+                if:
+                  condition:
+                    not:
+                      eq:
+                        - ref: actual.resolution_path
+                        - null
+                  then: complete
+                  else: missing_resolution_path
+              else: missing_owner
+          else: missing_root_cause
+
+  # State_next = Evaluate(orchestrate, { state, output })
+  #
+  # `classification` is not declared: it is derived from the emitted pressures.
+  orchestrate:
+    record:
+      contract:
+        ref: state.contract
+      result:
+        ref: state.result
+      verdict:
+        ref: output
+      converged:
+        ref: output.conforms

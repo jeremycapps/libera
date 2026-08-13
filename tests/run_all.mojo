@@ -14,6 +14,7 @@ import tests.test_k0 as test_k0
 import tests.test_yaml as test_yaml
 import tests.test_compile as test_compile
 import tests.test_domain as test_domain
+import tests.test_issue_model as test_issue_model
 import tests.test_address as test_address
 import tests.test_write as test_write
 import tests.test_policy_doc as test_policy_doc
@@ -46,6 +47,7 @@ fn main() raises:
 
     # Domain (layer 2)
     test_domain.run(t)
+    test_issue_model.run(t)
 
     # Architecture guards
     test_layering.run(t)
