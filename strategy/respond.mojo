@@ -377,3 +377,60 @@ fn escalation(strategy: Value, props: Value) -> Value:
             String("strategy has no 'exhausted' response"),
         )
     return evaluate(strategy.get(String("exhausted")), props)
+
+
+fn progress_props(
+    verdict: Value, prev_verdict: Value, prev_response: Value
+) -> Value:
+    """What a progress test may reference.
+
+    `previous` is one pair rather than two loose bindings, because
+    `previous.verdict` must be the verdict `previous.response` was aimed at.
+    Packaging them together is what keeps that true at every call site.
+    """
+    var p = Dict[String, Value]()
+    p[String("verdict")] = prev_verdict.copy()
+    p[String("response")] = prev_response.copy()
+
+    var d = Dict[String, Value]()
+    d[String("verdict")] = verdict.copy()
+    d[String("previous")] = Value.record(p^)
+    return Value.record(d^)
+
+
+fn progress(strategy: Value, props: Value) -> Value:
+    """Did the deviation move? A BOOL Value, or an Error.
+
+    Never consulted before a response has been recorded, so `previous` is always
+    populated and the test never reaches through a null -- which is why this
+    needs no presence operator to be written safely.
+    """
+    if strategy.is_error():
+        return strategy.copy()
+    if not strategy.has(String("progress")):
+        return Value.error(
+            String(E_STRATEGY), String("strategy has no 'progress' test")
+        )
+
+    var got = evaluate(strategy.get(String("progress")), props)
+    if got.is_error():
+        return got^
+    if got.tag != BOOL:
+        return Value.error(
+            String(E_STRATEGY),
+            String("'progress' must evaluate to a boolean, got ")
+            + got.to_string(),
+        )
+    return got^
+
+
+fn ineffective(strategy: Value, props: Value) -> Value:
+    """The response for a previous response that changed nothing."""
+    if strategy.is_error():
+        return strategy.copy()
+    if not strategy.has(String("ineffective")):
+        return Value.error(
+            String(E_STRATEGY),
+            String("strategy has no 'ineffective' response"),
+        )
+    return evaluate(strategy.get(String("ineffective")), props)
