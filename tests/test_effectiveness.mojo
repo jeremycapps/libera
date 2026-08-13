@@ -29,6 +29,7 @@ from strategy.respond import (
     E_STRATEGY,
 )
 from strategy.run import run as run_with_strategy
+from address.write import chain_is_intact
 from testkit.harness import TestSuite
 
 
@@ -56,6 +57,8 @@ fn run(mut t: TestSuite) raises:
     _progress_evaluation(t)
     _deviation_moves(t, model, strategy, policy)
     _deviation_stands_still(t, model, strategy, policy)
+    _futility_beats_exhaustion(t, model, policy)
+    _the_log_reads_as_an_argument(t, model, strategy, policy)
 
 
 fn _validation(mut t: TestSuite) raises:
@@ -290,6 +293,133 @@ fn _deviation_stands_still(
     # 3. The strategy stopped because it was getting nowhere, not because it ran
     # out of room, and the third result was never even verified.
     t.eq_int(String("having spent two of three attempts"), out.get(String("attempts")).i, 2)
+
+
+fn _futility_beats_exhaustion(
+    mut t: TestSuite, model: DomainModel, policy: Value
+) raises:
+    t.section(String("effectiveness / futility outranks the boundary"))
+
+    var strategy = load_strategy(
+        String("tests/fixtures/strategy-precedence.yaml")
+    )
+    t.not_error(String("the fixture loads"), strategy)
+
+    # Budget of one, and the same finding twice. On fold 2 the strategy is both
+    # out of attempts and demonstrably getting nowhere.
+    var results = List[Value]()
+    results.append(
+        _issue(Value.null(), _text(String("alice")), _text(String("rollback")))
+    )
+    results.append(_issue(Value.null(), _text(String("alice")), Value.null()))
+
+    var out = run_with_strategy(model, strategy, policy, results)
+    t.not_error(String("the run completes"), out)
+    t.eq_value(
+        String("it reports ineffective, not exhausted"),
+        out.get(String("stopped")),
+        sym(String("ineffective")),
+    )
+    # The assertion that matters: this is precedence, not arithmetic. Both
+    # conditions held, and the more specific conclusion was drawn.
+    t.eq_value(
+        String("the escalation is the futility one"),
+        out.get(String("responses")).at(1).get(String("authority")),
+        sym(String("engineering_lead")),
+    )
+
+
+fn _the_log_reads_as_an_argument(
+    mut t: TestSuite, model: DomainModel, strategy: Value, policy: Value
+) raises:
+    t.section(String("effectiveness / the fact, then the decision"))
+
+    var results = List[Value]()
+    results.append(
+        _issue(Value.null(), _text(String("alice")), _text(String("rollback")))
+    )
+    results.append(_issue(Value.null(), _text(String("alice")), Value.null()))
+
+    var out = run_with_strategy(model, strategy, policy, results)
+    var trace = out.get(String("trace"))
+
+    # Walk the tail of the log: the strategy's contribution to the futile fold
+    # is detect(response.effective), then respond(response.action), then
+    # respond(response.authority).
+    var strategy_writes = List[Value]()
+    for k in range(trace.len()):
+        var w = trace.at(k)
+        var slot = w.get(String("address")).get(String("slot"))
+        # Address slots are Refs (tag REF), not Strings/Symbols -- see
+        # address/grammar.mojo and tests/test_address.mojo -- so `.s` is read
+        # directly rather than gating on `is_text()`, which excludes REF.
+        if slot.s.startswith("response."):
+            strategy_writes.append(w)
+
+    # Fold 0 is an ordinary response: one write, and no `authority` write,
+    # because its candidate declares `authority: null`. Fold 1 is futile: three.
+    t.eq_int(
+        String("one write for the ordinary fold, three for the futile one"),
+        len(strategy_writes),
+        4,
+    )
+
+    var fact = strategy_writes[len(strategy_writes) - 3]
+    var decision = strategy_writes[len(strategy_writes) - 2]
+    var governance = strategy_writes[len(strategy_writes) - 1]
+
+    t.eq_str(
+        String("the fact is detected"),
+        fact.get(String("address")).get(String("operation")).s,
+        String("detect"),
+    )
+    t.eq_str(
+        String("at the effectiveness slot"),
+        fact.get(String("address")).get(String("slot")).s,
+        String("response.effective"),
+    )
+    t.eq_value(
+        String("and it records that the response did not work"),
+        fact.get(String("value")),
+        Value.bool(False),
+    )
+    t.eq_str(
+        String("the decision follows it"),
+        decision.get(String("address")).get(String("operation")).s,
+        String("respond"),
+    )
+    t.eq_str(
+        String("and the governance follows that"),
+        governance.get(String("address")).get(String("slot")).s,
+        String("response.authority"),
+    )
+
+    # Both layers' writes are still one chain. A detect write inserted by
+    # Strategy must not break the prev links Domain's writes established.
+    t.check(
+        String("the prev chain is unbroken across both layers"),
+        chain_is_intact(trace, String("")),
+        String("chain broken"),
+    )
+
+    # A fold that was not futile emits no strategy detect write.
+    var moving = List[Value]()
+    moving.append(
+        _issue(Value.null(), _text(String("alice")), _text(String("rollback")))
+    )
+    moving.append(
+        _issue(
+            _text(String("bad deploy")), Value.null(), _text(String("rollback"))
+        )
+    )
+    var out2 = run_with_strategy(model, strategy, policy, moving)
+    var n = 0
+    for k in range(out2.get(String("trace")).len()):
+        var w = out2.get(String("trace")).at(k)
+        var s = w.get(String("address")).get(String("slot"))
+        if s.s == String("response.effective"):
+            n += 1
+    t.eq_int(String("a fold that moved emits no detect"), n, 0)
 
 
 fn _count_operation(trace: Value, var op: String) -> Int:

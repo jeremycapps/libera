@@ -1,0 +1,36 @@
+# Both conclusions available at once: a budget of one, and a progress test.
+# Futility must win, and `authority` is how the test can tell which fired.
+model: strategy-precedence
+boundary:
+  max_attempts: 1
+expressions:
+  candidates:
+    list:
+      - record:
+          when: true
+          action: ask_for_logs
+          to: engineering
+          authority: null
+  progress:
+    not:
+      eq:
+        - ref: verdict.finding
+        - ref: previous.verdict.finding
+  ineffective:
+    record:
+      action: escalate
+      effective: false
+      authority: engineering_lead
+  exhausted:
+    record:
+      action: escalate
+      authority: product_owner
+  writes:
+    list:
+      - record:
+          when:
+            not:
+              ref: next.converged
+          pressure: exception
+          operation: respond
+          slot: response.action
