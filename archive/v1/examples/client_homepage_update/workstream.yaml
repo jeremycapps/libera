@@ -1,0 +1,47 @@
+workstream:
+  id: client_homepage_update
+  libera_version: 1.0.0
+
+states:
+  request/customer_assets/status:
+    values:
+      - draft
+      - submitted
+      - admitted
+      - rejected
+
+  task/update_hero_layout/status:
+    values:
+      - todo
+      - in_progress
+      - blocked
+      - ready_for_review
+      - done
+
+  task/update_hero_layout/priority:
+    values:
+      - low
+      - medium
+      - high
+
+  task/update_hero_layout/due:
+    value_type: date
+
+  review/client_homepage/status:
+    values:
+      - requested
+      - in_review
+      - changes_requested
+      - approved
+
+  validation/client_homepage/evidence:
+    values:
+      - missing
+      - partial
+      - present
+
+  validation/client_homepage/result:
+    values:
+      - pending
+      - passed
+      - failed

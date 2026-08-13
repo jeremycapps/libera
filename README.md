@@ -1,38 +1,94 @@
 # Libera
 
-An implementation of *Model Kernel, Domain, and Strategy Architecture* —
-layers 1 and 2. Strategy is **not** built, by design.
+A page-based platform for composing, sharing, and deploying executable semantic models.
 
+> Write the model once. Share the meaning. Deploy the behavior.
+
+Libera exists so people can build shared models of how work, time, coordination,
+interfaces, verification, and execution should behave. These are semantic models and
+ontologies, not machine-learning weights — they describe meaning, structure, rules, roles,
+states, transitions, evidence, and authority. Libera makes them executable.
+
+A model should not be trapped inside a codebase, a whiteboard, a task manager, or a single
+agent session. It should be a durable page that humans can read, teams can improve, agents
+can execute, and systems can depend on.
+
+## Page → Package → Deployment
+
+| Unit | What it is |
+|---|---|
+| **Page** | The authoring unit. A markdown body explaining the model, plus executable metadata declaring what it imports, exports, verifies, and how it participates in execution. |
+| **Package** | The shareable unit. A versioned collection of pages, schemas, examples, tests, and runtime metadata — importable, remixable, forkable, testable. |
+| **Deployment** | The live unit. A package running behind a usable boundary: an API, an MCP server, a CLI, a workspace, a calendar assistant, an interface surface. |
+
+## What is built today
+
+**The deterministic runtime — the technical spine.** The page, package, and deployment
+layers are not built yet; this repository is the foundation they will sit on.
+
+```text
+kernel/     Value · Ref · Expression · Evaluate      evaluates, knows nothing above it
+modelir/    YAML → Model IR                          normalizes, knows syntax not meaning
+address/    Address · Write                          records where a value belongs
+domain/     Contract · Result · Verdict · State      supplies coordination semantics
+strategy/   Operator · Goal · Boundary · Heuristic   not built
 ```
-kernel/value.mojo     Value: the universal representable object
-kernel/eval.mojo      Resolve(ref, props) and Evaluate(expr, props)
-kernel/ir.mojo        Construction helpers for the normalized Model IR
 
-modelir/text.mojo     Byte-level text helpers
-modelir/yaml.mojo     YAML subset reader -> plain data Values
-modelir/compile.mojo  Data tree -> normalized Model IR
+The kernel's whole execution surface is one principle:
 
-domain/model.mojo     DomainModel: a YAML model object loaded into IR
-domain/run.mojo       Contract -> Result -> Verdict -> CurrentState -> Snapshot
-
-models/               Model documents (YAML)
-testkit/harness.mojo  Assertion harness (Mojo 0.26 has no `mojo test`)
-tests/                The suite; `run_all.mojo` is the entry point
+```text
+Value_out = Evaluate(Expression, Props)
 ```
 
-The layering the doc asks for, top to bottom:
+The boundary that makes this composable: **the kernel does not know what a contract or a
+verdict means.** Domain is one protocol compiled onto the runtime — Contract → Result →
+Verdict → CurrentState → Snapshot. Address records where values belong and what transition
+occurred. Strategy will later choose candidates, repairs, retries, heuristics, and
+escalations when convergence fails.
 
-```
-YAML model document          models/domain-count-level-0.yaml
-  -> plain data tree         modelir/yaml.mojo
-  -> normalized Model IR     modelir/compile.mojo
-  -> kernel evaluation       kernel/eval.mojo
-  -> Domain protocol         domain/run.mojo
+A layering test enforces this: a module may not import from a layer above it.
+
+## The Address protocol
+
+Address answers *where state motion happened and under what pressure* — without knowing
+what the motion means. That is Domain's job.
+
+```text
+{pressure}/{operation}/{slot}
+
+movement/change/facia_surface_model.status = updated
 ```
 
-Each arrow is a separate module because each is a separate concern: the reader
-has no opinion about operators, the compiler has no opinion about syntax, and
-the kernel has no opinion about Domain.
+```text
+boundary    enter    something comes into scope
+            exit     something leaves scope or becomes output
+
+movement    advance  something moves forward
+            change   something is altered
+
+exception   detect   deviation is identified
+            respond  deviation is acted on
+```
+
+`protocol/address.schema.yaml` is the canonical schema, and the conformance test reads it
+directly — so the runtime cannot drift from the protocol it ships.
+
+The protocol deliberately defines no domain types. It does not name `request`,
+`deliverable`, `task`, `decision`, `validation`, or any other workflow concept; those are
+Domain bindings. An earlier version did name twelve such types, and removing them is what
+`archive/v1/` records.
+
+## Repository map
+
+| | |
+|---|---|
+| `protocol/` | The Address protocol. `address.schema.yaml` is canonical. |
+| `kernel/` `modelir/` `address/` `domain/` | The deterministic runtime. |
+| `models/` | Model documents: a Domain contract, and the default write policy. |
+| `docs/` | Runtime internals, field vocabulary, Timpos compatibility, v1→v2 migration. |
+| `examples/` | Address examples. |
+| `archive/v1/` | The superseded v1 protocol, kept for reference. |
+| `tests/` `testkit/` | 604 assertions. `./run_tests.sh` is the entry point. |
 
 ## Running the tests
 
@@ -40,186 +96,25 @@ the kernel has no opinion about Domain.
 ./run_tests.sh
 ```
 
-Or directly:
+Exits non-zero on any failure. Requires Mojo 0.26.2.0 or compatible; there are no other
+dependencies.
 
-```bash
-mojo run -I . tests/run_all.mojo
+## The ecosystem
+
+```text
+Address defines where motion happened.
+Domain names what the motion means.
+Timpos records observed changes.
+Corus evaluates objective satisfaction.
+Facia routes active state into use.
 ```
 
-Exits non-zero on any failure. Current status: **416 assertions, 0 failures**,
-including K0 from doc §2.3 and D0/D1 with traces A and B from doc §3.3.
+## Further reading
 
-## The kernel law
-
-    Value_out = Evaluate(Expression, Props)
-
-`Props` is an environment Value (a record) mapping names to Values. That is the
-entire execution surface. The kernel has no notion of Contract, Result,
-Verdict, CurrentState, Operator, Goal, Boundary, or Heuristic — those are
-Domain and Strategy concepts that compile *down* to the forms below.
-
-## Value forms
-
-Eleven tags, per doc §2.1 plus `error`:
-
-`null` · `bool` · `int` · `float` · `string` · `symbol` · `list` · `record` ·
-`ref` · `expression` · `error`
-
-Everything is a Value — including expressions, which is what makes them *data
-until Evaluate applies them*.
-
-## Expression forms
-
-All of doc §2.2:
-
-| Form | Example | Notes |
-|---|---|---|
-| literal | `Value.int(3)` | Evaluates to itself |
-| ref | `r("contract.expected.count")` | Resolved against props |
-| record / list | `record_of(...)`, `list_of(...)` | Build by evaluating parts |
-| arithmetic | `add`, `subtract`, `abs` | `add` variadic; Int-ness preserved |
-| comparison | `eq`, `lt`, `gt`, `lte`, `gte` | `eq` structural; ordering numeric |
-| logic | `and`, `or`, `not` | `and`/`or` short-circuit |
-| conditional | `if_(cond, then, else)` | Only the taken branch evaluates |
-| merge | `merge(state, patch)` | Shallow; later argument wins |
-| projection | `get(subject, key)` | Reaches into a computed value |
-| lambda-like | `lam(props, body)` + `call` | `props + body + returns` |
-
-## Design decisions
-
-Choices the doc left open (§8), resolved for v0. They are stated here rather
-than buried in the code, because each is a candidate for revisiting.
-
-**Values are immutable.** Children live behind `ArcPointer`, so copies are O(1)
-and structural sharing is safe. This also sidesteps Mojo's inability to
-synthesize a copy constructor for a struct directly containing `List[Self]`.
-
-**Errors are Values, not exceptions.** Neither `evaluate` nor `resolve` raises.
-Every failure — unresolved ref, type mismatch, bad arity, unknown op — returns
-an `error` Value carrying a code and message. This keeps the kernel law total
-and leaves failures inspectable and foldable into state by the layers above.
-Errors propagate strictly through operators; the exceptions are `and`/`or` and
-`if`, which are lazy by declaration.
-
-**Literal records are inert.** `evaluate` does not descend into a literal
-`record` or `list`; building one from expressions is the separate `record` /
-`list` form. Without that split there would be no way to carry an expression
-as data.
-
-**Truthiness is strict.** Only the boolean `true` is true. A non-boolean
-condition is a type error, never a silent coercion.
-
-**Int-ness is preserved.** `add`/`subtract`/`abs` return an Int only when every
-argument is an Int, so counting stays exact; any Float widens the result.
-Numeric comparison works across the two tags (`3 == 3.0`), since counts may
-arrive either way.
-
-**String and Symbol do not cross-compare.** `"confirmed"` is not the symbol
-`confirmed`; the distinction carries meaning upstream.
-
-**`merge` is shallow.** Deep-merge semantics would smuggle a policy decision
-into the kernel.
-
-**Lambdas are not closures.** They capture nothing from their definition site,
-which keeps them inert data that survives a YAML round-trip. Arguments are
-evaluated in the caller's environment; the body sees only its own props.
-
-**Refs.** Local and model paths are indistinguishable to the kernel — both are
-dotted lookups into props, which is the point: the kernel does not know what
-`contract` means. A qualified ref (`@domain/bootstrap.contract.expected`)
-resolves its `@`-prefixed qualifier as an ordinary props key, so a host can
-bind other models by name; an unbound qualifier reports `unresolved_model`
-rather than a generic missing key. External URI resolution is out of scope.
-
-# YAML authoring format
-
-An expression is a **single-key mapping whose key names an operator**, exactly
-as the architecture doc writes them:
-
-```yaml
-conforms:
-  eq:
-    - ref: actual.count
-    - ref: expected.count
-```
-
-Anything else is data. A mapping with several keys, or with one key that is not
-an operator, compiles to a literal record — so `contract.expected.count` stays
-plain data while `conforms:` becomes an expression.
-
-That rule has one sharp edge: a data record whose only key happens to be named
-after an operator would be read as an expression. `literal:` is the escape
-hatch:
-
-```yaml
-literal:
-  eq: 1        # a data record with a field called "eq"
-```
-
-**Scalar typing.** Quoted text is a String; bare text that is not a recognised
-bool, null, or number is a Symbol. That is what makes the doc's
-`then: confirmed` a symbol, comparable to a verdict finding rather than to
-arbitrary text.
-
-**Supported subset:** block mappings, block sequences, flow mappings and
-sequences, comments. Anchors, aliases, tags, multiple documents, and block
-scalars (`|`, `>`) are **rejected with a parse error naming the line** rather
-than silently mis-parsed. Parse errors are Values carrying a `line` field.
-
-## Domain (layer 2)
-
-Domain is a YAML model object, not Mojo code. `domain/` holds only the wiring;
-every semantic decision — what conformance means, how state folds, what counts
-as converged — lives in the model document.
-
-Per doc §3.2, the runtime decides only which props each expression sees:
-
-    Verdict     = Evaluate(Contract.verifier, { expected, actual })
-    State_next  = Evaluate(orchestrate,       { state, output })
-
-`contract` and `result` are also bound during verification, so a richer
-verifier can reach the whole contract; the doc's two-binding form is the subset
-the Level 0 model actually uses.
-
-**Level 0 does not plan.** A Result is supplied from outside, Domain verifies
-it, folds the outcome into state, and emits a Snapshot once converged. Given
-only non-conforming results it stays unconverged rather than deriving a
-conforming one — that is Strategy's job, and there is a test pinning the
-absence.
-
-**The verifier** is taken from `contract.verifier` when present, falling back to
-`expressions.verify`. Doc §3.1 gives Contract the shape `{ expected, verifier? }`
-while §3.3 writes the verifier under `expressions:`; both work.
-
-**Missing expressions are reported when asked for, not at load time.** D0 needs
-only a verifier, so a model without an orchestrator still loads and still
-verifies.
-
-## Deliberately not built
-
-- **No Strategy layer** — Operators, Goal, Boundary, Candidate, Heuristic (§4).
-  Levels S0, S1, and Integration from the bootstrap table (§6) remain open.
-
-K0, D0, and D1 are done.
-
-## Test coverage
-
-| Module | Covers |
-|---|---|
-| `test_value.mojo` | Tags, scalars, numeric and structural equality, ref parsing, non-trapping access, deterministic rendering, copy semantics |
-| `test_resolve.mojo` | Dotted paths, list indexing, qualified refs, and every failure mode |
-| `test_eval.mojo` | Every §2.2 expression form, plus laziness, strict error propagation, determinism, and props immutability |
-| `test_k0.mojo` | The doc's K0 case, its complement, and order-independence |
-| `test_yaml.mojo` | Scalar typing, block maps and sequences, flow collections, comments, CRLF, and every rejected construct |
-| `test_compile.mojo` | Operator recognition, data-versus-construction, the `literal:` escape, lambdas, and round-trip evaluation of compiled IR |
-| `test_domain.mojo` | D0, D1, traces A and B, convergence, Snapshot, model validation, and the absence of planning |
-
-Two things were verified beyond the suite passing:
-
-- **The harness can fail.** Run against a deliberately failing suite, all eight
-  assertion kinds report correctly and the process exits 1.
-- **The domain tests are coupled to the YAML.** Three mutations of
-  `models/domain-count-level-0.yaml` — changing the contract's expected count,
-  corrupting a verdict branch, and hardcoding `converged` — each produced
-  failures (20, 5, and 11 assertions respectively) rather than passing
-  vacuously.
+- [`docs/north-star.md`](docs/north-star.md) — the product vision this serves
+- [`docs/runtime.md`](docs/runtime.md) — how the runtime works
+- [`protocol/README.md`](protocol/README.md) — the Address protocol in full
+- [`docs/fields.md`](docs/fields.md) — the reserved field vocabulary
+- [`docs/timpos_compatibility.md`](docs/timpos_compatibility.md) — the Address/Timpos seam
+- [`docs/migration_v1_to_v2.md`](docs/migration_v1_to_v2.md) — what v2 removed and why
+- [`archive/v1/README.md`](archive/v1/README.md) — the superseded v1 protocol

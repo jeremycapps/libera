@@ -21,7 +21,7 @@ converge into one runtime.
 
 ## Assessment of the finding
 
-Verified correct against `protocol/libera.schema.yaml`:
+Verified correct against `protocol/address.schema.yaml`:
 
 - the `{pressure}/{operation}/{slot}` path format
 - the six pairs: boundary enter/exit, movement advance/change, exception detect/respond
@@ -294,7 +294,7 @@ surface rendering, even though the repo boundary that enforced that is gone.
 
 ## §6 Bill of materials: v1 versus v2
 
-**From v2** (`protocol/libera.schema.yaml`): path format, the six pairs, required
+**From v2** (`protocol/address.schema.yaml`): path format, the six pairs, required
 `program`, path-as-record-with-`id`, the scope boundaries list.
 
 **From v1** (`fields.md`, `logic.md`) — dropped by v2 without replacement: the field
@@ -318,7 +318,7 @@ governance  evidence_required · authority_required    ← evidence, authority
 
 Recorded, not built.
 
-## §7 Naming and publishing — OPEN DECISION
+## §7 Naming and publishing — SETTLED
 
 `~/Dev/libera` (Mojo runtime) and `github.com/jeremycapps/libera` (published spec) share
 a name and no content.
@@ -327,8 +327,16 @@ a name and no content.
 merged repo be spec-plus-reference-runtime. Scope-boundary claims then attach to
 `protocol/`, and the README must say so explicitly.
 
-**This changes what a public repo is.** No remote will be modified without explicit
-instruction.
+**Settled:** consolidate under the existing upstream repo, keeping its history. The two
+unrelated histories are joined with `--allow-unrelated-histories`, so the spec's 21 commits
+and the runtime's 18 both survive. v1 is preserved twice over: tagged (`v1-final`,
+`spec-only`) and archived under `archive/v1/`.
+
+The conformance test now reads `protocol/address.schema.yaml` directly rather than a
+vendored copy, so spec drift is structurally impossible rather than merely tested. This
+closes §9 steps 7-8 and unblocks §6.
+
+**Nothing has been pushed.** No SSH key or `gh` is available in the working environment.
 
 ## §8 Testing
 
@@ -338,7 +346,7 @@ instruction.
   `address/` files, failing if any mentions "contract", "verdict", or "conforms".
   Replaces the surrendered repo boundary.
 - **Conformance test** — `Address` validates against the published
-  `protocol/libera.schema.yaml`, so the runtime cannot drift from the spec it ships.
+  `protocol/address.schema.yaml`, so the runtime cannot drift from the spec it ships.
 - **Level 0 discipline** — assert no `exception/respond` is ever emitted.
 - **Mutation testing** on `writes-default.yaml`, as was done for the domain model, to
   prove the write tests are not vacuous.
@@ -359,7 +367,7 @@ instruction.
 
 **Implementation scope.** The first plan covers steps 1–6 only. Steps 7–8 import content
 from the other repository and are therefore blocked on §7; taking them earlier would
-presume that decision. The conformance test in §8 vendors `libera.schema.yaml` as a test
+presume that decision. The conformance test in §8 vendors `address.schema.yaml` as a test
 fixture rather than as `protocol/`, which gets the drift protection without committing to
 the merge.
 
@@ -383,6 +391,6 @@ Strategy remains unbuilt throughout.
 | 5 | Escalation is a species of respond, marked by `authority` |
 | 6 | v1 field vocabulary retained as reserved meanings, not enforced on slots |
 | 7 | Trace carries `prev` but no timestamps; observation stays Timpos's |
-| 8 | Repo naming and publishing — OPEN, no remote changes without instruction |
+| 8 | Repo naming and publishing — SETTLED: consolidate under upstream, histories joined, v1 tagged and archived |
 | 9 | Layer named `address/`; types `Address` and `Write` (not `motion`/`Motion`) |
 | 10 | `trace` is a projection, not a stored field; a snapshot's log position is its trace (settles doc §8 #5) |

@@ -1,0 +1,47 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Libera Vocabulary
+type: object
+required:
+  - libera
+  - types
+  - fields
+properties:
+  libera:
+    type: object
+    required:
+      - version
+      - path
+    properties:
+      version:
+        type: string
+        const: 1.0.0
+      path:
+        type: string
+        const: "{type}/{id}/{field}"
+    additionalProperties: false
+  types:
+    type: array
+    const:
+      - request
+      - deliverable
+      - approval
+      - acceptance
+      - task
+      - change
+      - review
+      - decision
+      - issue
+      - incident
+      - validation
+      - escalation
+  fields:
+    type: array
+    const:
+      - status
+      - owner
+      - result
+      - priority
+      - due
+      - evidence
+      - authority
+additionalProperties: false
