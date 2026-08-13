@@ -1,7 +1,7 @@
 # Response effectiveness: a strategy that notices its own response did nothing
 
 **Date:** 2026-08-13
-**Status:** designed, not implemented
+**Status:** implemented
 **Scope:** `strategy/respond.mojo`, `strategy/run.mojo`, a new model document, and tests.
 No kernel, `modelir/`, `address/`, or `domain/` changes.
 
