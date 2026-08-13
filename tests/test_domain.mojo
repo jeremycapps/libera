@@ -29,10 +29,14 @@ from domain.run import (
     verify,
     orchestrate,
     step,
+    step_with_writes,
     run as run_domain,
     snapshot,
     converged,
 )
+from domain.emit import load_policy
+from address.grammar import render
+from address.write import chain_is_intact
 from testkit.harness import TestSuite
 
 
@@ -53,6 +57,7 @@ fn run(mut t: TestSuite) raises:
     _trace_b(t, model)
     _convergence_and_snapshot(t, model)
     _no_planning(t, model)
+    _addressed_writes(t, model)
     _model_errors(t)
 
 
@@ -164,17 +169,22 @@ fn _d0_verification(mut t: TestSuite, model: DomainModel):
     )
 
 
-fn _d1_orchestration(mut t: TestSuite, model: DomainModel):
+fn _d1_orchestration(mut t: TestSuite, model: DomainModel) raises:
     t.section(String("D1 / domain orchestration"))
+
+    var policy = load_policy(String("models/writes-default.yaml"))
 
     var state = initial_state(model)
     var verdict = verify(model, _count_result(2))
     var folded = orchestrate(model, state, verdict)
 
     t.not_error(String("orchestrate returns a state"), folded)
+    var derived_bad = step_with_writes(
+        model, policy, state, _count_result(2), 0, String("")
+    )
     t.eq_value(
         String("classification becomes exception"),
-        folded.get(String("classification")),
+        derived_bad.get(String("state")).get(String("classification")),
         sym(String("exception")),
     )
     t.eq_value(
@@ -189,9 +199,12 @@ fn _d1_orchestration(mut t: TestSuite, model: DomainModel):
     )
 
     var good = orchestrate(model, state, verify(model, _count_result(3)))
+    var derived_good = step_with_writes(
+        model, policy, state, _count_result(3), 0, String("")
+    )
     t.eq_value(
         String("classification becomes confirmed"),
-        good.get(String("classification")),
+        derived_good.get(String("state")).get(String("classification")),
         sym(String("confirmed")),
     )
     t.eq_value(
@@ -210,8 +223,10 @@ fn _d1_orchestration(mut t: TestSuite, model: DomainModel):
     )
 
 
-fn _trace_a(mut t: TestSuite, model: DomainModel):
+fn _trace_a(mut t: TestSuite, model: DomainModel) raises:
     t.section(String("domain / trace A (doc 3.3): expected 3, actual 2"))
+
+    var policy = load_policy(String("models/writes-default.yaml"))
 
     var verdict = verify(model, _count_result(2))
     t.eq_value(
@@ -226,7 +241,9 @@ fn _trace_a(mut t: TestSuite, model: DomainModel):
         ),
     )
 
-    var next = step(model, initial_state(model), _count_result(2))
+    var next = step_with_writes(
+        model, policy, initial_state(model), _count_result(2), 0, String("")
+    ).get(String("state"))
     t.eq_value(
         String("CurrentState' = { classification: exception, converged: false }"),
         rec(
@@ -245,8 +262,10 @@ fn _trace_a(mut t: TestSuite, model: DomainModel):
     )
 
 
-fn _trace_b(mut t: TestSuite, model: DomainModel):
+fn _trace_b(mut t: TestSuite, model: DomainModel) raises:
     t.section(String("domain / trace B (doc 3.3): expected 3, actual 3"))
+
+    var policy = load_policy(String("models/writes-default.yaml"))
 
     var verdict = verify(model, _count_result(3))
     t.eq_value(
@@ -261,7 +280,9 @@ fn _trace_b(mut t: TestSuite, model: DomainModel):
         ),
     )
 
-    var next = step(model, initial_state(model), _count_result(3))
+    var next = step_with_writes(
+        model, policy, initial_state(model), _count_result(3), 0, String("")
+    ).get(String("state"))
     t.eq_value(
         String("CurrentState' = { classification: confirmed, converged: true }"),
         rec(
@@ -280,14 +301,16 @@ fn _trace_b(mut t: TestSuite, model: DomainModel):
     )
 
 
-fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
+fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel) raises:
     t.section(String("domain / convergence and snapshot"))
+
+    var policy = load_policy(String("models/writes-default.yaml"))
 
     # A run of supplied Results: the first fails, the second converges.
     var results = List[Value]()
     results.append(_count_result(2))
     results.append(_count_result(3))
-    var outcome = run_domain(model, results)
+    var outcome = run_domain(model, policy, results)
 
     t.not_error(String("run completes"), outcome)
     t.eq_value(
@@ -295,15 +318,15 @@ fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
         outcome.get(String("converged")),
         Value.bool(True),
     )
-    t.eq_int(String("trace has two entries"), outcome.get(String("trace")).len(), 2)
+    t.eq_int(String("trace holds six writes"), outcome.get(String("trace")).len(), 6)
     t.eq_value(
-        String("first trace entry is an exception"),
-        outcome.get(String("trace")).at(0).get(String("classification")),
+        String("first fold classifies as exception"),
+        outcome.get(String("classifications")).at(0),
         sym(String("exception")),
     )
     t.eq_value(
-        String("second trace entry is confirmed"),
-        outcome.get(String("trace")).at(1).get(String("classification")),
+        String("second fold classifies as confirmed"),
+        outcome.get(String("classifications")).at(1),
         sym(String("confirmed")),
     )
 
@@ -325,13 +348,13 @@ fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
         snap.get(String("final_verdict")).get(String("conforms")),
         Value.bool(True),
     )
-    t.eq_int(String("snapshot carries the trace"), snap.get(String("trace")).len(), 2)
+    t.eq_int(String("snapshot carries the trace"), snap.get(String("trace")).len(), 6)
 
     # Once converged the run stops -- later results are not consumed.
     var early = List[Value]()
     early.append(_count_result(3))
     early.append(_count_result(2))
-    var stopped = run_domain(model, early)
+    var stopped = run_domain(model, policy, early)
     t.eq_value(
         String("run stops at convergence"),
         stopped.get(String("converged")),
@@ -339,7 +362,7 @@ fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
     )
     t.eq_int(
         String("trailing results are not consumed"),
-        stopped.get(String("trace")).len(),
+        stopped.get(String("classifications")).len(),
         1,
     )
 
@@ -347,7 +370,7 @@ fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
     var never = List[Value]()
     never.append(_count_result(1))
     never.append(_count_result(2))
-    var unconverged = run_domain(model, never)
+    var unconverged = run_domain(model, policy, never)
     t.eq_value(
         String("non-conforming run does not converge"),
         unconverged.get(String("converged")),
@@ -365,7 +388,7 @@ fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
     )
 
     var empty = List[Value]()
-    var no_results = run_domain(model, empty)
+    var no_results = run_domain(model, policy, empty)
     t.eq_value(
         String("a run with no results does not converge"),
         no_results.get(String("converged")),
@@ -373,8 +396,10 @@ fn _convergence_and_snapshot(mut t: TestSuite, model: DomainModel):
     )
 
 
-fn _no_planning(mut t: TestSuite, model: DomainModel):
+fn _no_planning(mut t: TestSuite, model: DomainModel) raises:
     t.section(String("domain / Level 0 does not plan"))
+
+    var policy = load_policy(String("models/writes-default.yaml"))
 
     # The doc is explicit that Level 0 must not solve planning or repair. The
     # observable consequence: Domain never improves a Result on its own. Given
@@ -383,7 +408,7 @@ fn _no_planning(mut t: TestSuite, model: DomainModel):
     wrong.append(_count_result(0))
     wrong.append(_count_result(1))
     wrong.append(_count_result(2))
-    var outcome = run_domain(model, wrong)
+    var outcome = run_domain(model, policy, wrong)
 
     t.eq_value(
         String("Domain does not derive a conforming result"),
@@ -392,7 +417,7 @@ fn _no_planning(mut t: TestSuite, model: DomainModel):
     )
     t.eq_int(
         String("every supplied result was verified"),
-        outcome.get(String("trace")).len(),
+        outcome.get(String("classifications")).len(),
         3,
     )
     t.eq_value(
@@ -402,7 +427,7 @@ fn _no_planning(mut t: TestSuite, model: DomainModel):
     )
     t.eq_value(
         String("every step classified as exception"),
-        outcome.get(String("trace")).at(2).get(String("classification")),
+        outcome.get(String("classifications")).at(2),
         sym(String("exception")),
     )
 
@@ -508,4 +533,113 @@ contract:
         String("contract.verifier rejects a mismatch"),
         verify(on_contract, _count_result(5)).get(String("conforms")),
         Value.bool(False),
+    )
+
+
+fn _count_operation(trace: Value, var op: String) -> Int:
+    """How many writes in the log carry this operation."""
+    var n = 0
+    for k in range(trace.len()):
+        var o = trace.at(k).get(String("address")).get(String("operation"))
+        if o.is_text() and o.s == op:
+            n += 1
+    return n
+
+
+fn _addressed_writes(mut t: TestSuite, model: DomainModel) raises:
+    t.section(String("domain / writes carry addresses"))
+
+    var policy = load_policy(String("models/writes-default.yaml"))
+    var results = List[Value]()
+    results.append(_count_result(2))
+    results.append(_count_result(3))
+    var outcome = run_domain(model, policy, results)
+
+    t.not_error(String("run completes"), outcome)
+    t.eq_value(
+        String("run converges"),
+        outcome.get(String("converged")),
+        Value.bool(True),
+    )
+
+    # Three writes per fold. Fold 0: enter (first fold), change, detect. Fold 1: no
+    # enter, change, advance, exit (converged). Six in total.
+    var trace = outcome.get(String("trace"))
+    t.eq_int(String("six writes across two folds"), trace.len(), 6)
+    t.eq_str(
+        String("write 0 -- contract enters"),
+        render(trace.at(0).get(String("address"))),
+        String("boundary/enter/contract.expected"),
+    )
+    t.eq_str(
+        String("write 1 -- result changes"),
+        render(trace.at(1).get(String("address"))),
+        String("movement/change/result.actual"),
+    )
+    t.eq_str(
+        String("write 2 -- deviation detected"),
+        render(trace.at(2).get(String("address"))),
+        String("exception/detect/verdict.conforms"),
+    )
+    t.eq_str(
+        String("write 3 -- result changes again"),
+        render(trace.at(3).get(String("address"))),
+        String("movement/change/result.actual"),
+    )
+    t.eq_str(
+        String("write 4 -- conformance advances"),
+        render(trace.at(4).get(String("address"))),
+        String("movement/advance/verdict.conforms"),
+    )
+    t.eq_str(
+        String("write 5 -- work leaves scope"),
+        render(trace.at(5).get(String("address"))),
+        String("boundary/exit/snapshot"),
+    )
+
+    # `enter` fires exactly once even though two folds run.
+    t.eq_int(
+        String("contract enters scope only once"),
+        _count_operation(trace, String("enter")),
+        1,
+    )
+    t.eq_int(
+        String("result changes once per fold"),
+        _count_operation(trace, String("change")),
+        2,
+    )
+
+    t.check(
+        String("the whole log is one intact chain"),
+        chain_is_intact(trace, String("")),
+        String("chain broken"),
+    )
+
+    # Level 0 discipline, now assertable by address.
+    t.check(
+        String("no exception/respond is ever emitted"),
+        trace.to_string().find("respond") == -1,
+        String("planning has leaked into Domain"),
+    )
+
+    # Classification is derived, and still agrees with what the doc's traces say.
+    t.eq_value(
+        String("first fold classifies as exception"),
+        outcome.get(String("classifications")).at(0),
+        sym(String("exception")),
+    )
+    t.eq_value(
+        String("second fold classifies as confirmed"),
+        outcome.get(String("classifications")).at(1),
+        sym(String("confirmed")),
+    )
+
+    # A conforming-only run never emits an exception pressure.
+    var quick = List[Value]()
+    quick.append(_count_result(3))
+    var fast = run_domain(model, policy, quick)
+    t.check(
+        String("a conforming run emits no exception pressure"),
+        fast.get(String("trace")).to_string().find("exception") == -1,
+        String("unexpected exception pressure"),
     )

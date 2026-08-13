@@ -1,0 +1,60 @@
+# The default write policy.
+#
+# Every state write in a Level 0 run gets a Libera address from this document.
+# It is data, not code: the runtime evaluates it with the kernel and filters on the
+# declared `when`, so no semantic judgment lives in Mojo.
+#
+# Props available here: state, next, output, result, event{is_first, step}.
+# Slots resolve against the frame {contract, result, verdict, state, next, snapshot}.
+#
+# Note what is absent: exception/reply. Deciding what to try next after a
+# deviation is Strategy's job (doc section 4), not this policy's -- Level 0
+# only detects; it never chooses a next move.
+
+model: writes-default
+version: 0.1
+
+expressions:
+
+  writes:
+    list:
+
+      # The contract comes into scope on the first fold.
+      - record:
+          when:
+            ref: event.is_first
+          pressure: boundary
+          operation: enter
+          slot: contract.expected
+
+      # The supplied result alters state.
+      - record:
+          when: true
+          pressure: movement
+          operation: change
+          slot: result.actual
+
+      # Conformance either advances the work or reveals a deviation.
+      - record:
+          when: true
+          pressure:
+            if:
+              condition:
+                ref: output.conforms
+              then: movement
+              else: exception
+          operation:
+            if:
+              condition:
+                ref: output.conforms
+              then: advance
+              else: detect
+          slot: verdict.conforms
+
+      # Convergence takes the work out of scope.
+      - record:
+          when:
+            ref: next.converged
+          pressure: boundary
+          operation: exit
+          slot: snapshot

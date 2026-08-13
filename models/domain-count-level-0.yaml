@@ -51,11 +51,8 @@ expressions:
         ref: state.result
       verdict:
         ref: output
-      classification:
-        if:
-          condition:
-            ref: output.conforms
-          then: confirmed
-          else: exception
+      # classification is not declared here: it is derived from the emitted
+      # pressures. `movement/advance` is confirmed; `exception/detect` is an
+      # exception. Declaring it as well would be two sources of truth.
       converged:
         ref: output.conforms
