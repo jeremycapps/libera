@@ -50,9 +50,11 @@ fn main() raises:
     test_policy_doc.run(t)
     test_emit.run(t)
     test_replay.run(t)
-    test_replay.run_acceptance(t)
 
     # Domain (layer 2)
+    # `run_acceptance` drives a real model through `run()`, so it belongs with
+    # Domain rather than with the address-layer unit suites above.
+    test_replay.run_acceptance(t)
     test_domain.run(t)
     test_issue_model.run(t)
 

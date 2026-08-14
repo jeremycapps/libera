@@ -10,7 +10,7 @@ from kernel.value import Value, RECORD
 from kernel.ir import kv, rec
 from address.grammar import address, render
 from address.write import write, chain_is_intact
-from domain.model import DomainModel, load_domain_model
+from domain.model import load_domain_model
 from domain.run import run as run_domain, settled, make_result
 from domain.emit import load_policy
 from domain.replay import replay, E_REPLAY
@@ -24,6 +24,7 @@ fn _addr(var slot: String, var op: String, var pressure: String) -> Value:
 fn run(mut t: TestSuite):
     _well_formed(t)
     _last_write_wins(t)
+    _fold_is_keyed_by_slot(t)
     _malformed_input(t)
     _broken_chain(t)
     _unterminated(t)
@@ -64,6 +65,31 @@ fn _well_formed(mut t: TestSuite):
         3,
     )
 
+    # The fold is part of the contract, not an internal detail: every slot the
+    # log wrote is readable back out of it, including the non-terminal ones.
+    var slots = result.get(String("slots"))
+    t.check(
+        String("slots is a record"),
+        slots.tag == RECORD,
+        String("expected a record, got ") + slots.to_string(),
+    )
+    t.eq_int(String("slots holds one entry per slot written"), slots.len(), 3)
+    t.eq_value(
+        String("the non-terminal result.actual slot survives the fold"),
+        slots.get(String("result.actual")),
+        Value.int(1),
+    )
+    t.eq_value(
+        String("the non-terminal state.cursor slot survives the fold"),
+        slots.get(String("state.cursor")),
+        Value.int(2),
+    )
+    t.eq_value(
+        String("the terminal slot holds what reconstructed holds"),
+        slots.get(String("output.final")),
+        Value.int(3),
+    )
+
 
 fn _last_write_wins(mut t: TestSuite):
     t.section(String("replay / last write wins"))
@@ -90,6 +116,49 @@ fn _last_write_wins(mut t: TestSuite):
         String("steps still counts every write folded"),
         result.get(String("steps")).i,
         2,
+    )
+
+
+fn _fold_is_keyed_by_slot(mut t: TestSuite):
+    t.section(String("replay / the fold keys on slot, not rendered address"))
+
+    # One slot, written twice under two different pressure/operation pairs --
+    # exactly what a real run does to `verdict.conforms` when a deviation is
+    # detected and then resolved. Rendered addresses differ; the destination
+    # does not. Keyed by rendered address the stale `false` would survive
+    # alongside the `true` that replaced it.
+    var detected = _addr(
+        String("verdict.conforms"), String("detect"), String("exception")
+    )
+    var advanced = _addr(
+        String("verdict.conforms"), String("advance"), String("movement")
+    )
+    var exited = _addr(
+        String("snapshot"), String("exit"), String("boundary")
+    )
+
+    var w0 = write(detected, Value.bool(False), 0, String(""))
+    var w1 = write(advanced, Value.bool(True), 1, w0.get(String("id")).s.copy())
+    var w2 = write(exited, Value.int(7), 2, w1.get(String("id")).s.copy())
+
+    var items = List[Value]()
+    items.append(w0)
+    items.append(w1)
+    items.append(w2)
+
+    var result = replay(Value.list(items^))
+    t.not_error(String("a re-addressed slot still replays"), result)
+
+    var slots = result.get(String("slots"))
+    t.eq_int(
+        String("one slot written twice folds to one entry, not two"),
+        slots.len(),
+        2,
+    )
+    t.eq_value(
+        String("the later write to the slot wins across a pressure change"),
+        slots.get(String("verdict.conforms")),
+        Value.bool(True),
     )
 
 
@@ -231,6 +300,104 @@ fn run_acceptance(mut t: TestSuite) raises:
         not reconstructed.has(String("trace")),
         String("a settled value inside the log must not carry a trace: ")
         + reconstructed.to_string(),
+    )
+
+    # --- Reconstruction from the NON-terminal writes -----------------------
+    #
+    # Everything above reads the terminal write. On its own that proves the run
+    # terminated correctly, not that the log is reconstructable: a `replay` that
+    # discarded every write but the last would satisfy all of it. What follows
+    # rebuilds the settled snapshot out of the slots the earlier writes landed
+    # in, and never touches the `snapshot` slot the terminal write occupies.
+    #
+    # The slot -> settled-field mapping lives HERE, in the test. `replay` must
+    # never learn that `result.actual` means `final_result`; the test may know
+    # the model, the fold may not.
+
+    var slots = result.get(String("slots"))
+    t.check(
+        String("replay exposes its fold as a record of slots"),
+        slots.tag == RECORD,
+        String("expected a record, got ") + slots.to_string(),
+    )
+    t.check(
+        String("the fold holds the non-terminal contract.expected slot"),
+        slots.has(String("contract.expected")),
+        String("fold: ") + slots.to_string(),
+    )
+    t.check(
+        String("the fold holds the non-terminal result.actual slot"),
+        slots.has(String("result.actual")),
+        String("fold: ") + slots.to_string(),
+    )
+    t.check(
+        String("the fold holds the non-terminal verdict.conforms slot"),
+        slots.has(String("verdict.conforms")),
+        String("fold: ") + slots.to_string(),
+    )
+    t.eq_int(
+        String("the fold holds exactly the four slots the policy declares"),
+        slots.len(),
+        4,
+    )
+
+    # This run writes `verdict.conforms` twice: once under exception/detect
+    # (count=2 deviates) and once under movement/advance (count=3 conforms).
+    # Two rendered addresses, one destination -- which is why the fold keys on
+    # the slot. Keyed by rendered address the stale `false` would still be
+    # standing here beside the `true` that replaced it.
+    var saw_detect = False
+    var saw_advance = False
+    for k in range(trace.len()):
+        var rendered = render(trace.at(k).get(String("address")))
+        if rendered == "exception/detect/verdict.conforms":
+            saw_detect = True
+        if rendered == "movement/advance/verdict.conforms":
+            saw_advance = True
+    t.check(
+        String("the run writes verdict.conforms under two different pressures"),
+        saw_detect and saw_advance,
+        String("expected both an exception/detect and a movement/advance write"),
+    )
+    t.eq_value(
+        String("the folded verdict.conforms is the later, conforming write"),
+        slots.get(String("verdict.conforms")),
+        Value.bool(True),
+    )
+
+    # Rebuild the settled snapshot from those non-terminal slots alone. The
+    # comparison is against a projection of `settled()` rather than the whole
+    # record because the policy records `verdict.conforms`, not the whole
+    # Verdict -- the log cannot be asked to give back more than it wrote
+    # (`models/writes-default.yaml` declares exactly four slots).
+    var rebuilt = rec(
+        kv(
+            String("contract"),
+            rec(kv(String("expected"), slots.get(String("contract.expected")))),
+        ),
+        kv(
+            String("final_result"),
+            make_result(slots.get(String("result.actual")), String("manual")),
+        ),
+        kv(
+            String("final_verdict.conforms"),
+            slots.get(String("verdict.conforms")),
+        ),
+    )
+    var want_projection = rec(
+        kv(String("contract"), want.get(String("contract"))),
+        kv(String("final_result"), want.get(String("final_result"))),
+        kv(
+            String("final_verdict.conforms"),
+            want.get(String("final_verdict")).get(String("conforms")),
+        ),
+    )
+    t.eq_value(
+        String(
+            "the settled snapshot rebuilds from the non-terminal writes alone"
+        ),
+        rebuilt,
+        want_projection,
     )
 
     t.eq_int(
