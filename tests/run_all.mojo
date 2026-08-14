@@ -23,6 +23,7 @@ import tests.test_address as test_address
 import tests.test_write as test_write
 import tests.test_policy_doc as test_policy_doc
 import tests.test_emit as test_emit
+import tests.test_replay as test_replay
 import tests.test_layering as test_layering
 
 
@@ -48,6 +49,7 @@ fn main() raises:
     test_write.run(t)
     test_policy_doc.run(t)
     test_emit.run(t)
+    test_replay.run(t)
 
     # Domain (layer 2)
     test_domain.run(t)
