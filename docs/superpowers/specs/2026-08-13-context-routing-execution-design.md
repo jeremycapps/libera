@@ -18,11 +18,21 @@ Four decisions, taken deliberately, each of which forecloses a contamination pat
 |---|---|---|
 | Execution substrate | Pilot via subagents now; scripted harness after the protocol survives contact | Building a measurement rig around projections that have never run |
 | Arm 3's packet | Goal + output contract only — no acceptance criteria | §19.5, the "minimal" arm being the handoff in disguise |
-| Arm 2's packets | Deterministic projection from the canonical source | Arm 2 winning on free human judgment the others never got |
+| Arm 2's packets | Ref-range projection into a raw frozen source | Arm 2 winning on free human judgment the others never got |
 | Verdict | Deterministic gate + human judgment, sealed labels | An unvalidated agent-judge rubric being mistaken for a finding |
 
-And one it deliberately does **not** settle: the contents of `canonical-source.yaml`. See
-[Open items](#open-items).
+A first draft of `canonical-source.yaml` normalized the handoff into authored prose and ID'd
+fields. That draft was withdrawn: it was itself a projection — **§19.2 hidden packetization
+relocated from the orchestrator to the experimenter**, where no contamination control was
+looking for it. It also shrank the arm 1 ↔ arm 2 delta artificially, since selecting fields
+from an already-normalized object is not the same operation as packetizing raw source, biasing
+the pilot toward `no_material_difference`.
+
+The canonical source is now a **provenance manifest over raw material**, and arm 2's packets
+are **line-range addresses** into a frozen handoff rather than extracted fields. Selection stays
+mechanical, arm 1's source stays uncompressed, and the approach follows the repository's own
+convention — `docs/superpowers/packets/task-1.yaml` already routes by `steps_ref` line range,
+on the principle that a packet carries an address, not a payload.
 
 ## A contradiction in the subject spec, and its resolution
 
@@ -91,9 +101,12 @@ working repository, nothing is pushed, and no clone is ever added as a remote of
 Recorded in `freeze.yaml` before any arm starts, and stamped into every result packet:
 
 ```yaml
-baseline_commit: 4937ce1
+baseline_commit: 4937ce1f7d726811b262e31f71dab00ee17dd8b6
+baseline_tree_hash: b9b7b2797fbf8149556c084f9383186959dc16d1   # stronger than a commit ref
 baseline_assertions: 858        # verified: ./run_tests.sh, 0 failures, ~11s wall
-source_context_hash: <sha256 of canonical-source.yaml>
+source_hash: 663d4d8fd5d71dbb2ea1479ff5c9d58f42ec6fe988eeabc15c8778f5ce42c4f8
+contract_hash: 576053d564a3473405d22a8da72b91a53477b1b56e0a68c77e0bc67a9af1c12a
+goal_hash: 181eae00cd9d63dadd0841c688e8c078bde6747ed63590f3a3090fb2ddbe1ab2
 toolchain:
   mojo: 0.26.2.0                # verified present
   pyyaml: 6.0.3                 # verified present
@@ -273,17 +286,36 @@ where necessary.
 Risks 2, 4, 8, and 10 remain matters of discipline. Each is a candidate for hardening once the
 scripted harness exists — 2 and 8 in particular become mechanical there.
 
+## The disclosed ceiling
+
+The frozen source is `libera-agent-context-manifest-handoff.md`, taken **whole and unredacted**
+by explicit decision. Its §Proposed Manifest Shape (lines 161–245) contains a complete working
+manifest — key names, eight context classes, per-class load policies — and lines 259–269
+contain ready-to-paste README copy.
+
+The consequence is recorded here before the run rather than discovered after it:
+
+> **Priority 2 largely measures information transfer, not context routing.** Arm 1 can satisfy
+> it by transcription. Arm 3, given `goal.statement` alone, cannot recover eight named path
+> classes. A Priority 2 result of `prefer_full_context` is therefore not a finding about
+> context policy and must not be reported as one.
+
+Two discriminators survive the leak, and they carry the pilot's real signal:
+
+**Coverage.** The proposed shape is incomplete against the actual tree. It classifies no path
+for `examples/`, `run_tests.sh`, `docs/fields.md`, `docs/migration_v1_to_v2.md`, or
+`docs/timpos_compatibility.md` — `product_docs` names only `runtime.md` and `north-star.md`. An
+arm that transcribed the source inherits those gaps; an arm that verified against the tree
+closed them. This is `DC-10`, and it is the sharpest question the pilot can still ask.
+
+**Validator priming.** The source's own firewall (lines 133–134) says the validator must not be
+primed with implementation detail. Under the packetized projection the validator never receives
+`proposed_shape`; under full context it does. A real arm 1 ↔ arm 2 difference the leak does not
+erase — and one the source itself asked for.
+
 ## Open items
 
-**`canonical-source.yaml` is not drafted here, deliberately.** It is the most bias-sensitive
-artifact in the experiment: arm 1 receives it whole, arm 2 receives mechanical subsets of it,
-and its field decomposition therefore *determines the ceiling on how good arm 2 can look*.
-Choosing its contents quietly would settle the outcome before the first agent ran, which is
-precisely what §23.9 instructs the design agent not to do. It is work item 1, to be settled
-with the human. `~/Downloads/libera-agent-context-manifest-handoff.md` is a plausible seed and
-is superseded; whether it is the basis is a decision, not an inference.
-
-Also still open, and not blocking the pilot:
+Still open, and not blocking the pilot:
 
 - §22.2 — the smallest complete domain contract for the manifest, beyond the gate's six checks.
 - §22.7 / §22.8 — what implementer and validator may exchange directly. The pilot uses the
