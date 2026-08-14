@@ -147,3 +147,17 @@ comparison is against a projection of `settled()` — `final_verdict` narrowed t
 `conforms` field — because `models/writes-default.yaml` records `verdict.conforms`, not
 the whole Verdict. The log cannot be asked to give back more than it wrote; that is the
 same by-design limit already noted in the ruling above.
+
+Two further narrowings, recorded so the claim is not read as larger than it is.
+`final_result` is *compared* in full but not *rebuilt* in full: the log records
+`result.actual`, and `final_result.source` (`manual`) is re-supplied by the test from its
+own fixture, since no slot records it. `contract`'s `{expected: …}` wrapper shape is
+likewise supplied by the test. Both are within the standing ruling — the test may know the
+model, `replay` may not — but "rebuilt from the log" is true only of the values, not of
+the record shapes around them.
+
+What §10 is therefore proven by, precisely: `tests/test_replay.mojo:276-296` compares
+`reconstructed` against `settled(model, out.state)` on all three fields unnarrowed, and the
+non-terminal rebuild proves the fold is what does the reconstructing. Neither alone
+suffices — the first is satisfiable by `trace.last().value`, which is how the suite was
+fooled at `57b60e5`; the second is projected. Together they close it.
