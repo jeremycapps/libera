@@ -50,6 +50,7 @@ fn main() raises:
     test_policy_doc.run(t)
     test_emit.run(t)
     test_replay.run(t)
+    test_replay.run_acceptance(t)
 
     # Domain (layer 2)
     test_domain.run(t)
