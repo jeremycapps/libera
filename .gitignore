@@ -3,3 +3,5 @@
 build/
 .pixi/
 .DS_Store
+.cyboflow/worktrees/
+worktrees/
