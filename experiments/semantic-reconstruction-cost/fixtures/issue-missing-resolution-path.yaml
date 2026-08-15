@@ -1,0 +1,21 @@
+# Two rounds. Round 0 has a diagnosis and an owner but no plan; round 1
+# supplies the plan.
+#
+# Each list element is the `actual` Result for one round. Absence is always an
+# explicit `null`; no key is ever omitted, because an omitted key would make
+# `ref: actual.resolution_path` an unresolved-ref error rather than a false
+# presence check (see models/issue-completeness.yaml).
+
+- id: "ISS-4568"
+  title: "Search omits recently renamed accounts"
+  description: "An account renamed in the admin console is still returned under its old name for hours, and not at all under the new one."
+  root_cause: "The search index subscribes to account create and delete events but not to rename, so a renamed account keeps its stale document."
+  owner: "lena"
+  resolution_path: null
+
+- id: "ISS-4568"
+  title: "Search omits recently renamed accounts"
+  description: "An account renamed in the admin console is still returned under its old name for hours, and not at all under the new one."
+  root_cause: "The search index subscribes to account create and delete events but not to rename, so a renamed account keeps its stale document."
+  owner: "lena"
+  resolution_path: "Emit a reindex event on rename, then backfill the last 30 days of renamed accounts."

@@ -1,0 +1,20 @@
+# Two rounds. Round 0 states no root cause; round 1 supplies it.
+#
+# Each list element is the `actual` Result for one round. Absence is always an
+# explicit `null`; no key is ever omitted, because an omitted key would make
+# `ref: actual.root_cause` an unresolved-ref error rather than a false presence
+# check (see models/issue-completeness.yaml).
+
+- id: "ISS-4512"
+  title: "Nightly export silently drops rows"
+  description: "The nightly account export lands with fewer rows than the source table, and the job still reports success."
+  root_cause: null
+  owner: "dmitri"
+  resolution_path: "Re-run the export for the affected window and reconcile row counts before publishing."
+
+- id: "ISS-4512"
+  title: "Nightly export silently drops rows"
+  description: "The nightly account export lands with fewer rows than the source table, and the job still reports success."
+  root_cause: "The export paginates on created_at, so rows written while a page is in flight fall between two page boundaries and are never read."
+  owner: "dmitri"
+  resolution_path: "Re-run the export for the affected window and reconcile row counts before publishing."

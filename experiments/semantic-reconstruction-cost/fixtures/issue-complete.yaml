@@ -1,0 +1,13 @@
+# One round. Everything the contract requires arrives at once.
+#
+# Each list element is the `actual` Result for one round. Absence is always an
+# explicit `null`; no key is ever omitted, because an omitted key would make
+# `ref: actual.root_cause` an unresolved-ref error rather than a false presence
+# check (see models/issue-completeness.yaml).
+
+- id: "ISS-4417"
+  title: "Checkout returns 502 for EU customers"
+  description: "Customers billing to EU addresses see a 502 at the payment step. US and APAC checkouts are unaffected."
+  root_cause: "The TLS certificate on the EU payment gateway expired at 02:00 UTC and the proxy refused the upstream handshake."
+  owner: "priya"
+  resolution_path: "Renew the gateway certificate and add a 14-day expiry alert to the on-call rotation."

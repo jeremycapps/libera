@@ -1,0 +1,31 @@
+# Three rounds. Two fields are missing at once, and the model names them one at
+# a time in its fixed order: root cause, then owner, then resolution path.
+#
+# Round 0 has neither a root cause nor an owner. Round 1 supplies the root
+# cause, so the next gap surfaces. Round 2 supplies the owner.
+#
+# Each list element is the `actual` Result for one round. Absence is always an
+# explicit `null`; no key is ever omitted, because an omitted key would make
+# `ref: actual.root_cause` an unresolved-ref error rather than a false presence
+# check (see models/issue-completeness.yaml).
+
+- id: "ISS-4601"
+  title: "Annual plans billed at the monthly rate"
+  description: "Accounts that upgraded to an annual plan mid-term were charged one month of list price instead of twelve, across the last two billing runs."
+  root_cause: null
+  owner: null
+  resolution_path: "Credit the affected accounts and re-issue corrected invoices before the next billing run."
+
+- id: "ISS-4601"
+  title: "Annual plans billed at the monthly rate"
+  description: "Accounts that upgraded to an annual plan mid-term were charged one month of list price instead of twelve, across the last two billing runs."
+  root_cause: "The mid-term upgrade path rebuilds the subscription without copying the plan interval multiplier, so the invoice falls back to a one-month term."
+  owner: null
+  resolution_path: "Credit the affected accounts and re-issue corrected invoices before the next billing run."
+
+- id: "ISS-4601"
+  title: "Annual plans billed at the monthly rate"
+  description: "Accounts that upgraded to an annual plan mid-term were charged one month of list price instead of twelve, across the last two billing runs."
+  root_cause: "The mid-term upgrade path rebuilds the subscription without copying the plan interval multiplier, so the invoice falls back to a one-month term."
+  owner: "marcus"
+  resolution_path: "Credit the affected accounts and re-issue corrected invoices before the next billing run."
