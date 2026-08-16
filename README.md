@@ -100,6 +100,12 @@ Domain bindings. An earlier version did name twelve such types, and removing the
 Exits non-zero on any failure. Requires Mojo 0.26.2.0 or compatible; there are no other
 dependencies.
 
+## Experiments
+
+| | |
+|---|---|
+| [`experiments/semantic-reconstruction-cost/`](experiments/semantic-reconstruction-cost/) | Does an executable semantic model reduce the cost of reconstructing meaning, versus restating a rule in a prompt every run? A prompt-only agent (Method A) and the Domain pipeline (Method B) were run against the same five issue-completeness fixtures. **Verdict: continue** — Libera won 4 of the 5 §9 dimensions (tie on "clear explanation") and all 3 of §10's named dimensions (replayability, inspectability, reduced repeated context). See [`results.md`](experiments/semantic-reconstruction-cost/results.md). |
+
 ## The ecosystem
 
 ```text
