@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facia semantic surface fixtures</title>
+  <style>
+    :root { color-scheme: light; --ink:#17231f; --muted:#65716d; --paper:#f3f0e8; --panel:#fffdf8; --line:#d9d5ca; --accent:#006b55; --accent2:#d9f2e8; --danger:#a9352a; --warn:#f5c66b; --focus:#3a76f0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button,select { font:inherit; }
+    button:focus-visible,select:focus-visible,summary:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
+    .shell { max-width:1180px; margin:auto; padding:32px 22px 64px; }
+    header { display:grid; grid-template-columns:1fr auto; gap:24px; align-items:end; border-bottom:1px solid var(--line); padding-bottom:24px; }
+    .eyebrow { color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+    h1 { margin:.3rem 0 .15rem; font:700 clamp(30px,5vw,56px)/1.02 ui-serif,Georgia,serif; letter-spacing:-.035em; }
+    .lede { max-width:720px; color:var(--muted); margin:0; }
+    .state-control { display:grid; gap:6px; min-width:200px; }
+    label { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    select { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:10px 12px; }
+    nav { display:flex; gap:8px; overflow:auto; padding:18px 0; }
+    nav button { border:1px solid var(--line); background:transparent; border-radius:999px; padding:8px 13px; white-space:nowrap; cursor:pointer; }
+    nav button[aria-selected="true"] { background:var(--ink); color:white; border-color:var(--ink); }
+    main { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(260px,.7fr); gap:22px; }
+    .surface,.explain { background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 45px rgba(55,47,31,.07); }
+    .surface { min-height:520px; padding:26px; }
+    .explain { padding:20px; align-self:start; position:sticky; top:18px; }
+    .status-row { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    h2 { font:700 27px/1.15 ui-serif,Georgia,serif; margin:.25rem 0 1.25rem; }
+    h3 { margin:1.2rem 0 .5rem; font-size:14px; text-transform:uppercase; letter-spacing:.07em; }
+    .badge { display:inline-flex; gap:7px; align-items:center; border-radius:999px; background:#f9dfda; color:var(--danger); padding:6px 10px; font-weight:800; text-transform:capitalize; }
+    .badge::before { content:""; width:8px; height:8px; border-radius:50%; background:currentColor; }
+    .facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:18px 0; }
+    .fact { background:var(--panel); padding:13px; }
+    .fact small { display:block; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    .missing { border-left:4px solid var(--warn); background:#fff8e9; padding:13px 15px; border-radius:8px; }
+    details { border-top:1px solid var(--line); margin-top:20px; padding-top:14px; }
+    summary { cursor:pointer; font-weight:750; }
+    .chips { display:flex; flex-wrap:wrap; gap:7px; padding:12px 0 0; }
+    .chip { border:1px solid var(--line); border-radius:999px; padding:5px 9px; background:white; }
+    .actions { display:flex; gap:9px; flex-wrap:wrap; margin-top:26px; }
+    .actions button { border:1px solid var(--ink); border-radius:8px; padding:9px 13px; background:var(--panel); cursor:pointer; }
+    .actions button.primary { background:var(--accent); border-color:var(--accent); color:white; }
+    .meta { display:grid; gap:10px; }
+    .meta div { border-bottom:1px solid var(--line); padding-bottom:9px; }
+    .meta code { color:var(--accent); word-break:break-word; }
+    .notice { padding:38px 20px; text-align:center; color:var(--muted); }
+    .spinner { display:inline-block; width:25px; height:25px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    table { width:100%; border-collapse:collapse; }
+    th,td { text-align:left; border-bottom:1px solid var(--line); padding:11px 8px; }
+    .columns { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .column { background:#f5f2ea; border-radius:10px; padding:12px; }
+    .card { background:white; border:1px solid var(--line); border-radius:8px; padding:11px; margin-top:9px; }
+    .timeline { border-left:2px solid var(--accent); margin:18px 0 0 12px; padding-left:22px; }
+    .event { position:relative; margin:0 0 20px; }
+    .event::before { content:""; position:absolute; width:10px; height:10px; background:var(--accent); border-radius:50%; left:-28px; top:6px; }
+    .audit { display:grid; gap:1px; background:var(--line); border:1px solid var(--line); }
+    .audit div { background:white; padding:10px; font-family:ui-monospace,SFMono-Regular,monospace; font-size:13px; }
+    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+    @media (max-width:800px) { header,main { grid-template-columns:1fr; } .explain { position:static; } .facts,.columns { grid-template-columns:1fr; } .surface { min-height:auto; padding:20px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div><div class="eyebrow">Facia · AnswerSet v1</div><h1>Answered context, made usable.</h1><p class="lede">A semantic fixture gallery for review panel, table, queue, board, timeline, and audit/replay recipes. Inspection stays separate from mutation authority.</p></div>
+      <div class="state-control"><label for="state">Fixture state</label><select id="state"><option>Ready</option><option>Loading</option><option>Empty</option><option>Validation error</option><option>Operation unavailable</option></select></div>
+    </header>
+    <nav aria-label="Surface fixtures" id="tabs"></nav>
+    <main><section class="surface" id="surface" aria-live="polite"></section><aside class="explain"><div class="eyebrow">Resolver output</div><h2 id="pattern">review-panel</h2><div class="meta" id="meta"></div></aside></main>
+  </div>
+  <script>
+    const mercury = {schema:"facia.answer-set/1",question:"Can this incident move from Support to Engineering?",answerType:"verdict",path:"execution",density:3,inspection:"available",actionable:true,items:[{type:"Verdict",contract:"BoundedVerdictV1",state:"blocked",conforms:false,finding:"missing_context",actual:{incidentId:"INC-1842",owner:"Support",targetContext:"Engineering",missing:["root_cause","reproduction_steps"]},evidence:["customer_report","application_logs","prior_support_notes"]}],operations:[{id:"assign",label:"Assign",reference:"mercury.assign_owner"},{id:"escalate",label:"Escalate",reference:"mercury.escalate"},{id:"comment",label:"Comment",reference:"mercury.add_comment"}]};
+    const fixtures = [
+      {name:"Review panel",variant:"review-panel",reason:"PATTERN_ACTIONABLE_VERDICT",shape:"singular-verdict",record:mercury},
+      {name:"Table",variant:"table",reason:"PATTERN_DIMENSION_TABLE",shape:"dimension",record:{answerType:"value",path:"meaning",density:2,inspection:"available",actionable:false,items:["Support","Engineering"]}},
+      {name:"Queue",variant:"queue",reason:"PATTERN_ACTION_QUEUE",shape:"group",record:{answerType:"verdict",path:"execution",density:2,inspection:"available",actionable:true,items:["INC-1839","INC-1842"]}},
+      {name:"Board",variant:"board",reason:"PATTERN_TRANSFORM_BOARD",shape:"group",record:{answerType:"transform",path:"execution",density:2,inspection:"available",actionable:false,items:["Triage","Handoff","Accepted"]}},
+      {name:"Timeline",variant:"timeline",reason:"PATTERN_TEMPORAL_TIMELINE",shape:"temporal-sequence",record:{answerType:"value",path:"meaning",density:2,inspection:"available",actionable:false,items:["Reported","Triaged","Blocked"]}},
+      {name:"Audit / replay",variant:"audit-trail",reason:"PATTERN_TRACE_AUDIT",shape:"trace-sequence",record:{answerType:"value",path:"execution",density:3,inspection:"available",actionable:false,items:["question.selected","domain.completed","bridge.normalized"]}}
+    ];
+    let active=0;
+    const tabs=document.querySelector("#tabs"), surface=document.querySelector("#surface"), state=document.querySelector("#state");
+    fixtures.forEach((fixture,index)=>{const button=document.createElement("button");button.textContent=fixture.name;button.role="tab";button.onclick=()=>{active=index;render()};tabs.append(button)});
+    state.onchange=render;
+    const normal={
+      "review-panel":()=>`<div class="status-row"><div><div class="eyebrow">Incident handoff</div><h2>${mercury.question}</h2></div><span class="badge">${mercury.items[0].state}</span></div><div class="facts"><div class="fact"><small>Incident</small>${mercury.items[0].actual.incidentId}</div><div class="fact"><small>Current owner</small>${mercury.items[0].actual.owner}</div><div class="fact"><small>Target context</small>${mercury.items[0].actual.targetContext}</div><div class="fact"><small>Finding</small>Missing context</div></div><div class="missing"><strong>Required before handoff</strong><div class="chips">${mercury.items[0].actual.missing.map(x=>`<span class="chip">${x}</span>`).join("")}</div></div><details><summary>Available evidence (${mercury.items[0].evidence.length})</summary><div class="chips">${mercury.items[0].evidence.map(x=>`<span class="chip">${x}</span>`).join("")}</div></details><div class="actions">${mercury.operations.map((x,i)=>`<button ${i===0?'class="primary"':''} data-reference="${x.reference}">${x.label}</button>`).join("")}</div>`,
+      table:()=>`<div class="eyebrow">Dimension</div><h2>Incident readiness comparison</h2><table><thead><tr><th>Incident</th><th>Owner</th><th>Readiness</th></tr></thead><tbody><tr><td>INC-1842</td><td>Support</td><td>Blocked</td></tr><tr><td>INC-1839</td><td>Engineering</td><td>Ready</td></tr></tbody></table>`,
+      queue:()=>`<div class="eyebrow">Execution group</div><h2>Handoffs needing action</h2><div class="card"><strong>INC-1842</strong><p>Missing root cause and reproduction steps</p></div><div class="card"><strong>INC-1839</strong><p>Awaiting engineering owner</p></div>`,
+      board:()=>`<div class="eyebrow">Transform group</div><h2>Incident transitions</h2><div class="columns"><div class="column"><strong>Triage</strong><div class="card">INC-1842</div></div><div class="column"><strong>Handoff</strong><div class="card">INC-1839</div></div><div class="column"><strong>Accepted</strong><div class="card">INC-1825</div></div></div>`,
+      timeline:()=>`<div class="eyebrow">Temporal sequence</div><h2>Incident history</h2><div class="timeline"><div class="event"><strong>Reported</strong><br><span>Customer report received</span></div><div class="event"><strong>Triaged</strong><br><span>Support reproduced impact</span></div><div class="event"><strong>Blocked</strong><br><span>Engineering context incomplete</span></div></div>`,
+      "audit-trail":()=>`<div class="eyebrow">Trace sequence</div><h2>Normalization trace</h2><div class="audit" data-compatible-variant="replay-panel"><div>01 question.selected</div><div>02 domain.completed</div><div>03 bridge.normalized</div><div>04 answer-set.validated</div></div>`
+    };
+    function render(){
+      const fixture=fixtures[active], mode=state.value;
+      [...tabs.children].forEach((button,index)=>button.setAttribute("aria-selected",String(index===active)));
+      document.querySelector("#pattern").textContent=fixture.variant;
+      document.querySelector("#meta").innerHTML=`<div><label>Shape</label><br><code>${fixture.shape}</code></div><div><label>Reason</label><br><code>${fixture.reason}</code></div><div><label>Inspection</label><br><code>${fixture.record.inspection}</code></div><div><label>Actions</label><br><code>${fixture.record.actionable?"declared operations only":"none"}</code></div>`;
+      if(mode==="Loading") surface.innerHTML='<div class="notice"><span class="spinner" aria-hidden="true"></span><h2>Resolving answered context…</h2></div>';
+      else if(mode==="Empty") surface.innerHTML='<div class="notice"><h2>No answered context yet</h2><p>The renderer has a valid, empty host state; AnswerSet items themselves remain non-empty by contract.</p></div>';
+      else if(mode==="Validation error") surface.innerHTML='<div class="notice"><span class="badge">Invalid</span><h2>AnswerSet could not be rendered</h2><p><code>ANSWER_KIND_MISMATCH</code></p></div>';
+      else { surface.innerHTML=normal[fixture.variant](); if(mode==="Operation unavailable") surface.querySelectorAll(".actions button").forEach(button=>{button.disabled=true;button.title="Host operation registry unavailable"}); }
+    }
+    render();
+  </script>
+</body>
+</html>

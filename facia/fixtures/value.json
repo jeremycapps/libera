@@ -1,0 +1,11 @@
+{
+  "schema": "facia.answer-set/1",
+  "question": "What is the current incident count?",
+  "answerType": "value",
+  "path": "meaning",
+  "density": 1,
+  "inspection": "available",
+  "actionable": false,
+  "items": [{ "type": "Value", "value": 7, "evidence": ["incident-index"] }],
+  "operations": []
+}

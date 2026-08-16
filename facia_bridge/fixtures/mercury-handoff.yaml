@@ -1,0 +1,41 @@
+schema: 'facia.answer-set/1'
+question: 'Can this incident move from Support to Engineering?'
+answerType: 'verdict'
+path: 'execution'
+density: 3
+inspection: 'available'
+actionable: true
+items:
+  - type: 'Verdict'
+    contract: 'BoundedVerdictV1'
+    state: 'blocked'
+    conforms: false
+    finding: missing_context
+    actual:
+      incidentId: 'INC-1842'
+      owner: 'Support'
+      targetContext: 'Engineering'
+      missing:
+        - 'root_cause'
+        - 'reproduction_steps'
+    evidence:
+      - 'customer_report'
+      - 'application_logs'
+      - 'prior_support_notes'
+operations:
+  - id: 'assign'
+    label: 'Assign'
+    invocation: 'model-operation'
+    reference: 'mercury.assign_owner'
+  - id: 'escalate'
+    label: 'Escalate'
+    invocation: 'model-operation'
+    reference: 'mercury.escalate'
+  - id: 'comment'
+    label: 'Comment'
+    invocation: 'host-callback'
+    reference: 'mercury.add_comment'
+trace:
+  - 'question.selected'
+  - 'domain.completed'
+  - 'bridge.normalized'

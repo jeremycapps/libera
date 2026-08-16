@@ -1,0 +1,6 @@
+{
+  "schema": "facia.answer-set/1",
+  "schemaSha256": "98c2fa77d981b3bab0ad293b767442752f5d1f4d5d5d74ebaf85eaf13f1deb00",
+  "schemaPath": "../schemas/facia-answer-set.v1.schema.json",
+  "fixtures": ["value.json", "mercury-handoff.json", "transform.json"]
+}

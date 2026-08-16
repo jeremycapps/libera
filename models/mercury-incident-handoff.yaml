@@ -1,0 +1,41 @@
+# Domain answer model selected by questions/mercury-incident-handoff.yaml.
+model: mercury-incident-handoff
+version: 1.0
+answer_contract: BoundedVerdictV1
+conformance: optional
+write_policy: models/writes-bounded.yaml
+
+contract:
+  expected:
+    target_context: Engineering
+    root_cause: required
+    reproduction_steps: required
+
+expressions:
+  verify:
+    record:
+      type: Verdict
+      state: blocked
+      conforms: false
+      finding: missing_context
+      actual:
+        record:
+          incidentId:
+            ref: actual.incidentId
+          owner:
+            ref: actual.owner
+          targetContext:
+            ref: actual.targetContext
+          missing:
+            ref: actual.missing
+      evidence:
+        ref: actual.evidence
+  orchestrate:
+    record:
+      contract:
+        ref: state.contract
+      result:
+        ref: state.result
+      verdict:
+        ref: output
+      converged: false

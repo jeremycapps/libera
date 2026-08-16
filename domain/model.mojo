@@ -38,6 +38,10 @@ comptime E_MODEL = "model_error"
 struct DomainModel(ImplicitlyCopyable, Copyable, Movable):
     var name: String
     var version: Value
+    var answer_contract: String
+    var answer_contract_declared: Bool
+    var conformance_optional: Bool
+    var write_policy: String
     var contract: Value
     var expressions: Value
     var error: Value
@@ -46,6 +50,10 @@ struct DomainModel(ImplicitlyCopyable, Copyable, Movable):
     fn __init__(out self):
         self.name = String("")
         self.version = Value.null()
+        self.answer_contract = String("LegacyBooleanVerdictV0")
+        self.answer_contract_declared = False
+        self.conformance_optional = False
+        self.write_policy = String("models/writes-default.yaml")
         self.contract = Value.empty_record()
         self.expressions = Value.empty_record()
         self.error = Value.null()
@@ -126,6 +134,24 @@ fn domain_model_from_value(root: Value) -> DomainModel:
         m.name = n.s.copy() if n.is_text() else n.to_string()
     if root.has(String("version")):
         m.version = root.get(String("version"))
+    if root.has(String("answer_contract")):
+        var answer_contract = root.get(String("answer_contract"))
+        if not answer_contract.is_text():
+            return _invalid(String("answer_contract must be a name"))
+        m.answer_contract = answer_contract.s.copy()
+        m.answer_contract_declared = True
+    if root.has(String("conformance")):
+        var conformance = root.get(String("conformance"))
+        if not conformance.is_text():
+            return _invalid(String("conformance must be 'required' or 'optional'"))
+        if conformance.s != String("required") and conformance.s != String("optional"):
+            return _invalid(String("conformance must be 'required' or 'optional'"))
+        m.conformance_optional = conformance.s == String("optional")
+    if root.has(String("write_policy")):
+        var write_policy = root.get(String("write_policy"))
+        if not write_policy.is_text():
+            return _invalid(String("write_policy must be a path"))
+        m.write_policy = write_policy.s.copy()
 
     # The contract is data, but may carry a `verifier` expression, so it goes
     # through the compiler like everything else.

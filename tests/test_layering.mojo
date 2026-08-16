@@ -28,6 +28,7 @@ comptime LAYER_ORDER_1 = "modelir"
 comptime LAYER_ORDER_2 = "address"
 comptime LAYER_ORDER_3 = "domain"
 comptime LAYER_ORDER_4 = "strategy"
+comptime LAYER_ORDER_5 = "facia_bridge"
 
 
 fn _read(path: String) raises -> String:
@@ -40,6 +41,16 @@ fn _imports_from(source: String, package: String) -> Bool:
     return (
         source.find(String("from ") + package + String(".")) >= 0
         or source.find(String("import ") + package + String(".")) >= 0
+    )
+
+
+fn _mentions_surface_vocabulary(source: String) -> Bool:
+    return (
+        source.find(String("Facia")) >= 0
+        or source.find(String("AnswerSet")) >= 0
+        or source.find(String("PatternSpec")) >= 0
+        or source.find(String("AffordanceSpec")) >= 0
+        or source.find(String("renderer recipe")) >= 0
     )
 
 
@@ -71,12 +82,13 @@ fn _layering(mut t: TestSuite) raises:
     layers.append(String(LAYER_ORDER_2))
     layers.append(String(LAYER_ORDER_3))
     layers.append(String(LAYER_ORDER_4))
+    layers.append(String(LAYER_ORDER_5))
 
-    # `strategy` is the topmost layer, so it has nothing above it to be checked
+    # `facia_bridge` is the topmost Libera integration layer, so it has nothing above
     # against -- it still participates as an upper bound for the rest. Every
     # other package is enumerated and checked, which is what stops Domain from
     # reaching up into Strategy: Strategy drives Domain, never the reverse.
-    var checked_layers = 4
+    var checked_layers = 5
 
     for i in range(checked_layers):
         var package = layers[i]
@@ -96,6 +108,24 @@ fn _layering(mut t: TestSuite) raises:
                     not _imports_from(src, above),
                     String("a module may not import from a layer above it"),
                 )
+            t.check(
+                files[f] + String(" does not name Facia presentation vocabulary"),
+                not _mentions_surface_vocabulary(src),
+                String("lower layers cannot own shapes, patterns, affordances, or renderer recipes"),
+            )
+
+    var invalid_import = _read(String("tests/fixtures/layering-invalid/facia-import.txt"))
+    t.check(
+        String("invalid fixture proves reverse-import guard"),
+        _imports_from(invalid_import, String(LAYER_ORDER_5)),
+        String("invalid import fixture no longer exercises the guard"),
+    )
+    var invalid_vocabulary = _read(String("tests/fixtures/layering-invalid/facia-vocabulary.txt"))
+    t.check(
+        String("invalid fixture proves presentation-vocabulary guard"),
+        _mentions_surface_vocabulary(invalid_vocabulary),
+        String("invalid vocabulary fixture no longer exercises the guard"),
+    )
 
     var address_files = _mojo_files_in(String(LAYER_ORDER_2))
     t.check(

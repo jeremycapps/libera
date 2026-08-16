@@ -4,6 +4,8 @@ A page-based platform for composing, sharing, and deploying executable semantic 
 
 > Write the model once. Share the meaning. Deploy the behavior.
 
+> **Ask a question. Get an interface. Continue the work.**
+
 Libera exists so people can build shared models of how work, time, coordination,
 interfaces, verification, and execution should behave. These are semantic models and
 ontologies, not machine-learning weights — they describe meaning, structure, rules, roles,
@@ -32,6 +34,7 @@ modelir/    YAML → Model IR                          normalizes, knows syntax 
 address/    Address · Write                          records where a value belongs
 domain/     Contract · Result · Verdict · State      supplies coordination semantics
 strategy/   Operator · Goal · Boundary · Heuristic   decides what to do when it fails
+facia_bridge/ Domain answer → pinned AnswerSet       normalizes across the release seam
 ```
 
 The kernel's whole execution surface is one principle:
@@ -48,6 +51,28 @@ convergence fails — built as three rungs: a fixed response, selection against 
 and bounded search over composed operators.
 
 A layering test enforces this: a module may not import from a layer above it.
+
+## Question → answer → surface
+
+The Page → Package → Deployment product model remains the durable authoring and release
+path. Question resolution extends that path with three strict ownership boundaries:
+
+- **Libera owns questions.** A declared question model names its executable Domain model,
+  inputs, expected answer contract, semantic path, and explicitly authorized operations.
+- **Domain owns answers.** It produces raw Values, versioned Verdicts, and TransformV1
+  records. Convergence is a higher-order evaluation over answers, not another primitive.
+- **Facia owns surfaces.** It validates AnswerSet records and deterministically resolves
+  semantic shapes, patterns, inspection affordances, action affordances, and renderer
+  recipes.
+
+Inspection is independent of mutation authority: a read-only answer can still expand,
+filter, sort, compare, or expose evidence and trace. State-changing controls exist only
+for operations explicitly declared at the question/Domain boundary. Domain never selects
+renderer patterns, and Facia never evaluates a Domain model or decides business truth.
+The kernel remains limited to `Value_out = Evaluate(Expression, Props)`.
+
+The cross-repository ownership, schema-id/hash pin, compatibility errors, and deterministic
+fixture update procedure are defined in [`docs/facia-contract.md`](docs/facia-contract.md).
 
 ## The Address protocol
 
@@ -84,12 +109,13 @@ Domain bindings. An earlier version did name twelve such types, and removing the
 | | |
 |---|---|
 | `protocol/` | The Address protocol. `address.schema.yaml` is canonical. |
-| `kernel/` `modelir/` `address/` `domain/` `strategy/` | The deterministic runtime. |
+| `kernel/` `modelir/` `address/` `domain/` `strategy/` `facia_bridge/` | The deterministic runtime and top integration boundary. |
+| `facia/` | Self-contained Facia contract/resolver package, golden fixtures, tests, and static prototypes. |
 | `models/` | Model documents: two Domain contracts, three strategies, and the default write policy. |
 | `docs/` | Runtime internals, field vocabulary, Timpos compatibility, v1→v2 migration. |
 | `examples/` | Address examples. |
 | `archive/v1/` | The superseded v1 protocol, kept for reference. |
-| `tests/` `testkit/` | 815 assertions. `./run_tests.sh` is the entry point. |
+| `tests/` `testkit/` | 1,000 Mojo assertions plus the Facia conformance suite. |
 
 ## Running the tests
 
@@ -97,8 +123,15 @@ Domain bindings. An earlier version did name twelve such types, and removing the
 ./run_tests.sh
 ```
 
-Exits non-zero on any failure. Requires Mojo 0.26.2.0 or compatible; there are no other
-dependencies.
+For the cross-layer release check, including Facia schema, resolver, fixture, and static
+surface conformance:
+
+```bash
+./verify_release.sh
+```
+
+Both commands exit non-zero on failure. The Libera suite requires Mojo 0.26.2.0 or
+compatible; the dependency-free Facia package uses a current Node.js runtime.
 
 ## Experiments
 

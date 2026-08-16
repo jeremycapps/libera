@@ -25,6 +25,8 @@ import tests.test_policy_doc as test_policy_doc
 import tests.test_emit as test_emit
 import tests.test_replay as test_replay
 import tests.test_layering as test_layering
+import tests.test_answer_contracts as test_answer_contracts
+import tests.test_facia_bridge as test_facia_bridge
 
 
 fn main() raises:
@@ -63,6 +65,10 @@ fn main() raises:
     test_strategy_triage.run(t)
     test_effectiveness.run(t)
     test_search.run(t)
+
+    # Versioned answer contracts and the top Libera-to-Facia boundary
+    test_answer_contracts.run(t)
+    test_facia_bridge.run(t)
 
     # Architecture guards
     test_layering.run(t)

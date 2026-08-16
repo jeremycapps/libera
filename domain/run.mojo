@@ -21,6 +21,7 @@ from kernel.value import Value, RECORD
 from kernel.eval import evaluate
 from kernel.ir import kv, rec
 from domain.model import DomainModel
+from domain.answer import validate_declared_answer, validate_model_policy
 from domain.emit import (
     policy_props,
     slot_frame,
@@ -94,7 +95,10 @@ fn verify(model: DomainModel, result: Value) -> Value:
     props[String("contract")] = model.contract.copy()
     props[String("result")] = result.copy()
 
-    return evaluate(verifier, Value.record(props^))
+    var answer = evaluate(verifier, Value.record(props^))
+    if answer.is_error():
+        return answer^
+    return validate_declared_answer(model, answer)
 
 
 fn orchestrate(model: DomainModel, state: Value, output: Value) -> Value:
@@ -158,6 +162,10 @@ fn step_with_writes(
     """
     if not model.is_valid():
         return model.error.copy()
+
+    var compatible = validate_model_policy(model, policy)
+    if compatible.is_error():
+        return compatible^
 
     var verdict = verify(model, result)
     if verdict.is_error():

@@ -1,0 +1,23 @@
+{
+  "schema": "facia.answer-set/1",
+  "question": "Replay the accepted incident transition.",
+  "answerType": "transform",
+  "path": "execution",
+  "density": 2,
+  "inspection": "available",
+  "actionable": true,
+  "items": [
+    {
+      "type": "Transform",
+      "operation": { "id": "handoff", "name": "Support to Engineering handoff" },
+      "input": { "owner": "Support" },
+      "output": { "owner": "Engineering" },
+      "before": { "status": "triaged" },
+      "after": { "status": "accepted" },
+      "evidence": ["approval:ENG-22"]
+    }
+  ],
+  "operations": [
+    { "id": "replay", "label": "Replay", "invocation": "host-callback", "reference": "mercury.replay_handoff", "confirmation": "Replay this recorded handoff?" }
+  ]
+}

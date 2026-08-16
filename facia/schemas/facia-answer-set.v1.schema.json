@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "facia.answer-set/1",
+  "title": "Facia AnswerSet v1",
+  "description": "Renderer- and language-neutral answered-context contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "question", "answerType", "path", "density", "inspection", "actionable", "items", "operations"],
+  "properties": {
+    "schema": { "const": "facia.answer-set/1" },
+    "question": { "type": "string", "minLength": 1 },
+    "answerType": { "enum": ["value", "verdict", "transform"] },
+    "path": { "enum": ["meaning", "execution"] },
+    "density": { "enum": [1, 2, 3] },
+    "inspection": { "enum": ["none", "available"] },
+    "actionable": { "type": "boolean" },
+    "items": { "type": "array", "minItems": 1 },
+    "structure": { "enum": ["dimension", "group", "sequence"] },
+    "sequenceKind": { "enum": ["temporal", "dependency", "trace"] },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation" }
+    },
+    "trace": {}
+  },
+  "$defs": {
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "invocation", "reference"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "invocation": { "enum": ["model-operation", "host-callback"] },
+        "reference": { "type": "string", "minLength": 1 },
+        "inputSchema": { "type": "object" },
+        "confirmation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "valueItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "const": "Value" },
+        "value": {},
+        "evidence": {}
+      }
+    },
+    "verdictItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "contract"],
+      "properties": {
+        "type": { "const": "Verdict" },
+        "contract": { "enum": ["LegacyBooleanVerdictV0", "BoundedVerdictV1"] },
+        "state": { "type": "string", "minLength": 1 },
+        "conforms": { "type": "boolean" },
+        "finding": {},
+        "reason": {},
+        "expected": {},
+        "actual": {},
+        "evidence": {}
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "contract": { "const": "LegacyBooleanVerdictV0" } } },
+          "then": { "required": ["conforms"], "not": { "required": ["state"] } }
+        },
+        {
+          "if": { "properties": { "contract": { "const": "BoundedVerdictV1" } } },
+          "then": { "required": ["state"] }
+        }
+      ]
+    },
+    "transformItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "operation", "input", "output"],
+      "properties": {
+        "type": { "const": "Transform" },
+        "operation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "name": { "type": "string", "minLength": 1 }
+          }
+        },
+        "input": {},
+        "output": {},
+        "before": {},
+        "after": {},
+        "evidence": {}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "answerType": { "const": "value" } } },
+      "then": { "properties": { "items": { "items": { "$ref": "#/$defs/valueItem" } } } }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "verdict" } } },
+      "then": { "properties": { "items": { "items": { "$ref": "#/$defs/verdictItem" } } } }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "transform" } } },
+      "then": { "properties": { "items": { "items": { "$ref": "#/$defs/transformItem" } } } }
+    },
+    {
+      "if": { "properties": { "items": { "maxItems": 1 } } },
+      "then": { "not": { "anyOf": [{ "required": ["structure"] }, { "required": ["sequenceKind"] }] } }
+    },
+    {
+      "if": { "properties": { "structure": { "const": "sequence" } }, "required": ["structure"] },
+      "then": { "required": ["sequenceKind"] },
+      "else": { "not": { "required": ["sequenceKind"] } }
+    },
+    {
+      "if": { "properties": { "actionable": { "const": true } } },
+      "then": { "properties": { "operations": { "minItems": 1 } } },
+      "else": { "properties": { "operations": { "maxItems": 0 } } }
+    }
+  ]
+}

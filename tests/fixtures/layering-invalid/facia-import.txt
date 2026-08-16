@@ -1,0 +1,1 @@
+from facia_bridge.bridge import normalize

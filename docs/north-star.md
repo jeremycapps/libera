@@ -10,6 +10,8 @@ The goal is to make collaborative semantic models feel as natural to author as n
 
 Write models as pages. Link them like a vault. Compose them like a workspace. Deploy them like apps.
 
+Ask a question. Get an interface. Continue the work.
+
 Libera exists so people can build shared models of how work, time, coordination, interfaces, verification, and execution should behave. These models are closer to semantic models and ontologies than machine-learning weights. They describe meaning, structure, rules, roles, states, transitions, evidence, and authority. Libera makes those models executable.
 
 # The Product Triangle
@@ -61,6 +63,18 @@ Pages are the human-readable source units. Packages are the collaborative distri
 Under the product surface, Libera provides the deterministic runtime. Its kernel evaluates normalized expressions against property environments using the simple principle Value\_out \= Evaluate(Expression, Props). Domain is one protocol that can be compiled onto that runtime: Contract to Result to Verdict to CurrentState to Snapshot. Address records where values belong and what transition occurred. Strategy will later choose candidates, repairs, retries, heuristics, and escalations when convergence fails.
 
 This preserves a strict boundary: the kernel evaluates expressions, but it does not know what a contract or verdict means. Domain supplies coordination semantics. Address supplies structural writes. Strategy supplies search and response. The page-based platform supplies authoring, collaboration, sharing, and deployment.
+
+Question-to-interface resolution extends Page to Package to Deployment; it does not
+replace it. Libera owns declared, executable question models. Domain owns Value,
+versioned Verdict, and Transform answers. Facia owns the renderer-neutral AnswerSet,
+shape, pattern, inspection, action-affordance, and renderer-recipe contracts. The kernel
+continues to know only `Value_out = Evaluate(Expression, Props)`.
+
+Inspection and action are separate channels. Facia may expose safe read-only inspection
+without mutation authority. A state-changing action must preserve an explicitly declared
+model-operation or host-callback reference. Domain does not choose surface patterns or
+concrete components, and Facia does not execute Domain models or reinterpret business
+truth.
 
 # Why This Matters
 

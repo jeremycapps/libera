@@ -1,0 +1,24 @@
+# Explicit write policy for BoundedVerdictV1 models that may omit conforms.
+# It records state directly and never dereferences output.conforms or verdict.conforms.
+model: writes-bounded
+version: 1.0
+
+expressions:
+  writes:
+    list:
+      - record:
+          when:
+            ref: event.is_first
+          pressure: boundary
+          operation: enter
+          slot: contract.expected
+      - record:
+          when: true
+          pressure: movement
+          operation: change
+          slot: result.actual
+      - record:
+          when: true
+          pressure: exception
+          operation: detect
+          slot: verdict.state

@@ -1,0 +1,27 @@
+id: mercury.incident_handoff
+prompt: Can this incident move from Support to Engineering?
+domain_model: models/mercury-incident-handoff.yaml
+write_policy: models/writes-bounded.yaml
+required_inputs:
+  - incidentId
+  - owner
+  - targetContext
+  - missing
+  - evidence
+expected_answer: BoundedVerdictV1
+path: execution
+density: 3
+inspection: available
+operations:
+  - id: assign
+    label: Assign
+    invocation: model-operation
+    reference: mercury.assign_owner
+  - id: escalate
+    label: Escalate
+    invocation: model-operation
+    reference: mercury.escalate
+  - id: comment
+    label: Comment
+    invocation: host-callback
+    reference: mercury.add_comment

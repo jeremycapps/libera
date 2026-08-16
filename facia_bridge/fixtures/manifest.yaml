@@ -1,0 +1,8 @@
+schema: facia.answer-set/1
+schema_sha256: 98c2fa77d981b3bab0ad293b767442752f5d1f4d5d5d74ebaf85eaf13f1deb00
+source_manifest: facia/fixtures/manifest.json
+fixtures:
+  - mercury-handoff.yaml
+release_order:
+  - Facia schema, types, validator, and golden fixtures
+  - Libera schema pin, bridge, and consumer conformance tests
