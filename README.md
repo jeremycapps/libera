@@ -85,11 +85,11 @@ Domain bindings. An earlier version did name twelve such types, and removing the
 |---|---|
 | `protocol/` | The Address protocol. `address.schema.yaml` is canonical. |
 | `kernel/` `modelir/` `address/` `domain/` `strategy/` | The deterministic runtime. |
-| `models/` | Model documents: two Domain contracts, three strategies, and the default write policy. |
+| `models/` | Model documents: two Domain contracts, four strategies, and the default write policy. |
 | `docs/` | Runtime internals, field vocabulary, Timpos compatibility, v1→v2 migration. |
 | `examples/` | Address examples. |
 | `archive/v1/` | The superseded v1 protocol, kept for reference. |
-| `tests/` `testkit/` | 815 assertions. `./run_tests.sh` is the entry point. |
+| `tests/` `testkit/` | 898 assertions. `./run_tests.sh` is the entry point. |
 
 ## Running the tests
 
